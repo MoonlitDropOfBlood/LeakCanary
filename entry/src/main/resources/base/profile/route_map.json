@@ -1,0 +1,20 @@
+{
+  "routerMap": [
+    {
+      "name": "entry/TestNav1Child",
+      "pageSourceFile": "src/main/ets/_generated/ZRTestNav1Child.ets",
+      "buildFunction": "entryTestNav1ChildBuilder",
+      "data": {
+        "needLogin": "false"
+      }
+    },
+    {
+      "name": "entry/TestNav2Child",
+      "pageSourceFile": "src/main/ets/_generated/ZRTestNav2Child.ets",
+      "buildFunction": "entryTestNav2ChildBuilder",
+      "data": {
+        "needLogin": "false"
+      }
+    }
+  ]
+}

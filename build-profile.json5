@@ -1,0 +1,60 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\wwhby\\.ohos\\config\\default_LeakCanary_cRksjL0avrVwg0H8n3bNrQANF-bXEnUSb7xM43nxlRo=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BA607A2BDECBF334BD58C737149D0AB59940AB75F65B820AC047F2751F81774EC22132E2F32950B",
+          "profile": "C:\\Users\\wwhby\\.ohos\\config\\default_LeakCanary_cRksjL0avrVwg0H8n3bNrQANF-bXEnUSb7xM43nxlRo=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\wwhby\\.ohos\\config\\default_LeakCanary_cRksjL0avrVwg0H8n3bNrQANF-bXEnUSb7xM43nxlRo=.p12",
+          "storePassword": "0000001BB3BE955B218D688AFF90B412D9272258207319CD86D62F07FD2A4147AEA5D158B6BD1492F03953"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "6.0.0(20)",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "library",
+      "srcPath": "./library",
+    }
+  ]
+}

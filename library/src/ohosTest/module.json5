@@ -1,0 +1,15 @@
+{
+  "module": {
+    "name": "library_test",
+    "type": "feature",
+    "deviceTypes": [
+      "default",
+      "tablet",
+      "2in1",
+      "car",
+      "wearable"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false
+  }
+}
