@@ -1,9 +1,17 @@
 {
   "name": "@duke/leak-canary",
   "version": "1.0.0",
-  "description": "Please describe the basic information.",
+  "description": "实时检测 ArkTS 组件内存泄漏",
   "main": "Index.ts",
-  "author": "",
-  "license": "Apache-2.0",
+  "author": "duke",
+  "license": "MIT",
+  "keywords": [
+    "leak",
+    "内存泄漏",
+    "HarmonyOS",
+    "OpenHarmony"
+  ],
+  "repository": "https://gitee.com/Duke_Bit/leak-canary",
+  "homepage": "https://gitee.com/Duke_Bit",
   "dependencies": {}
 }
