@@ -2,8 +2,9 @@ import { uiObserver } from "@kit.ArkUI"
 import { objWatch } from "./ObjWatch"
 
 export class LeakCanary {
-  static init(rootComponent: any) {
-    rootComponent.getUIContext().getUIObserver().on("navDestinationUpdate", (navInfo) => {
+
+  static registerRootWatch(rootComponent: object) {
+    rootComponent['getUIContext']().getUIObserver().on("navDestinationUpdate", (navInfo) => {
       if (navInfo.state == uiObserver.NavDestinationState.ON_WILL_DISAPPEAR && navInfo.uniqueId) {
         let map: Map<number, WeakRef<object>> = rootComponent["childrenWeakrefMap_"]
         map.forEach((value, key) => {
