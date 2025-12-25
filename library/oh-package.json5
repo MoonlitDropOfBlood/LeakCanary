@@ -2,7 +2,7 @@
   "name": "@duke/leak-canary",
   "version": "2.0.0",
   "description": "实时检测 ArkTS 组件内存泄漏",
-  "main": "Index.ets",
+  "main": "Index.ts",
   "author": "duke",
   "license": "MIT",
   "keywords": [

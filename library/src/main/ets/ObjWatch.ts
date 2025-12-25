@@ -1,4 +1,4 @@
-import { LinkedList, util } from '@kit.ArkTS'
+import { HashSet, LinkedList, util } from '@kit.ArkTS'
 import { hidebug, hilog } from '@kit.PerformanceAnalysisKit'
 import { Context } from '@kit.AbilityKit'
 
@@ -20,26 +20,25 @@ class ObjWatch {
       let gcSource = new Object()
       this.targetGC = new WeakRef(gcSource)
       const registry = new FinalizationRegistry((heldValue: ObjWatch) => {
-        let classNames:string[] = []
+        let objects:HashSet<object> = new HashSet()
         heldValue.cacheValue.forEach((it: WeakRef<object>) => {
           let info = it.deref()
           if (info == undefined) {
             heldValue.cacheValue.remove(it)
           }else{
-            hilog.error(0x0001,"GC",  `组件 `)
-            classNames.push(info['extraInfo_']['page'])
+            objects.add(info)
           }
         })
-        if(heldValue.cacheValue.length > 0) {
-          hilog.error(0x0001, "GC", "可能泄漏的组件为" + heldValue.cacheValue.length)
+        if(objects.length > 0) {
+          hilog.error(0x0001, "GC", "可能泄漏的组件为" + objects.length)
           hidebug.dumpJsHeapData("heapData")
-          heldValue.analyzeHeapSnapshot(heldValue.context.filesDir+"/heapData.heapsnapshot", classNames)
+          heldValue.analyzeHeapSnapshot(heldValue.context.filesDir+"/heapData.heapsnapshot",  Array.from(objects.values()))
         }
       });
       registry.register(gcSource, this)
     }
   }
-  analyzeHeapSnapshot:(file:string,className:string[])=>void
+  analyzeHeapSnapshot:(file:string,objects:object[])=>void
 }
 
 export const objWatch = new ObjWatch()

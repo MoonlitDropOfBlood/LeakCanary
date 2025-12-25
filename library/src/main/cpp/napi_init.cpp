@@ -29,6 +29,11 @@ namespace {
         napi_create_string_utf8(env, node.propertyName.c_str(), NAPI_AUTO_LENGTH, &propertyNameValue);
         napi_set_named_property(env, jsNode, "propertyName", propertyNameValue);
         
+        // nodeId
+        napi_value nodeIdValue;
+        napi_create_int32(env, node.nodeId, &nodeIdValue);
+        napi_set_named_property(env, jsNode, "nodeId", nodeIdValue);
+        
         return jsNode;
     }
     
@@ -74,7 +79,7 @@ namespace {
         return jsResult;
     }
     
-    // NAPI函数：解析堆快照并查找引用链
+    // NAPI函数：解析堆快照并查找引用链（按类名）
     napi_value ParseHeapSnapshotAndFindChains(napi_env env, napi_callback_info info) {
         size_t argc = 2;
         napi_value args[2];
@@ -127,13 +132,77 @@ namespace {
         napi_value jsResult = CreateResultObject(env, result);
         return jsResult;
     }
+    
+    // NAPI函数：解析堆快照并查找引用链（按对象数组）
+    napi_value ParseHeapSnapshotAndFindChainsForObjects(napi_env env, napi_callback_info info) {
+        size_t argc = 2;
+        napi_value args[2];
+        napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+        
+        if (argc < 2) {
+            napi_throw_error(env, nullptr, "Wrong number of arguments. Expected: filepath, objects");
+            napi_value undefined;
+            napi_get_undefined(env, &undefined);
+            return undefined;
+        }
+        
+        // 获取文件路径参数
+        size_t filePathLength;
+        napi_get_value_string_utf8(env, args[0], nullptr, 0, &filePathLength);
+        std::string filePath(filePathLength, '\0');
+        napi_get_value_string_utf8(env, args[0], &filePath[0], filePathLength + 1, nullptr);
+        
+        // 获取对象数组参数
+        uint32_t arrayLength;
+        napi_get_array_length(env, args[1], &arrayLength);
+        
+        std::vector<int> nodeIds;
+        for (uint32_t i = 0; i < arrayLength; i++) {
+            napi_value jsElement;
+            napi_get_element(env, args[1], i, &jsElement);
+            
+            // 从对象中获取nodeId
+            napi_value nodeIdValue;
+            napi_status status = napi_get_named_property(env, jsElement, "nodeId", &nodeIdValue);
+            if (status == napi_ok) {
+                int32_t nodeId;
+                napi_get_value_int32(env, nodeIdValue, &nodeId);
+                nodeIds.push_back(nodeId);
+            }
+        }
+        
+        // 执行解析和查找引用链的操作
+        HeapSnapshotParser parser;
+        if (!parser.parseSnapshot(filePath)) {
+            napi_throw_error(env, nullptr, "Failed to parse heap snapshot file");
+            napi_value undefined;
+            napi_get_undefined(env, &undefined);
+            return undefined;
+        }
+        
+        // 为每个对象ID查找引用链
+        std::vector<std::vector<ReferenceChainNode>> chains = 
+            parser.findReferenceChainsForNodeIds(nodeIds);
+        
+        // 将结果转换为JavaScript数组
+        napi_value jsResult;
+        napi_create_array_with_length(env, chains.size(), &jsResult);
+        
+        for (size_t i = 0; i < chains.size(); i++) {
+            napi_value jsChain = CreateReferenceChain(env, chains[i]);
+            napi_set_element(env, jsResult, i, jsChain);
+        }
+        
+        return jsResult;
+    }
 }
 
 // 模块初始化函数
 static napi_value Init(napi_env env, napi_value exports) {
     // 定义模块的公共接口
     napi_property_descriptor desc[] = {
-        {"parseHeapSnapshotAndFindChains", nullptr, ParseHeapSnapshotAndFindChains, nullptr, nullptr, nullptr, napi_default, nullptr}
+        {"parseHeapSnapshotAndFindChains", nullptr, ParseHeapSnapshotAndFindChains, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"parseHeapSnapshotAndFindChainsForObjects", nullptr, ParseHeapSnapshotAndFindChainsForObjects, nullptr, nullptr, nullptr, napi_default, nullptr}
     };
     
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);

@@ -411,6 +411,7 @@ std::vector<std::vector<ReferenceChainNode>> HeapSnapshotParser::findAllPathsToN
             targetNode.className = nodes[targetNodeIndex].name;
             targetNode.edgeType = "target";
             targetNode.propertyName = "instance";
+            targetNode.nodeId = nodes[targetNodeIndex].id;
             
             path.push_back(targetNode);
             
@@ -434,6 +435,23 @@ std::vector<std::vector<ReferenceChainNode>> HeapSnapshotParser::findReferenceCh
     return allChains;
 }
 
+std::vector<std::vector<ReferenceChainNode>> HeapSnapshotParser::findReferenceChainsForNodeIds(const std::vector<int>& nodeIds) {
+    std::vector<std::vector<ReferenceChainNode>> allChains;
+    
+    for (size_t i = 0; i < nodeIds.size(); i++) {
+        int nodeId = nodeIds[i];
+        // 通过nodeId查找nodeIndex
+        std::map<int, int>::iterator it = nodeIdToIndexMap.find(nodeId);
+        if (it != nodeIdToIndexMap.end()) {
+            int nodeIndex = it->second;
+            std::vector<std::vector<ReferenceChainNode>> chains = findAllPathsToNode(nodeIndex);
+            allChains.insert(allChains.end(), chains.begin(), chains.end());
+        }
+    }
+    
+    return allChains;
+}
+
 std::map<std::string, std::vector<std::vector<ReferenceChainNode>>> HeapSnapshotParser::findReferenceChainsForMultipleClasses(
     const std::vector<std::string>& classNames) {
     std::map<std::string, std::vector<std::vector<ReferenceChainNode>>> resultMap;
@@ -445,55 +463,4 @@ std::map<std::string, std::vector<std::vector<ReferenceChainNode>>> HeapSnapshot
     }
     
     return resultMap;
-}
-
-int main(int argc, char* argv[]) {
-    if (argc < 3) {
-        std::cerr << "用法: " << argv[0] << " <heap_snapshot_file> <class_name1> [class_name2] ...\n";
-        return 1;
-    }
-
-    std::string filename = argv[1];
-    
-    // 获取所有类名参数
-    std::vector<std::string> classNames;
-    for (int i = 2; i < argc; i++) {
-        classNames.push_back(argv[i]);
-    }
-
-    HeapSnapshotParser parser;
-    if (!parser.parseSnapshot(filename)) {
-        return 1;
-    }
-
-    // 为每个类名查找引用链
-    std::map<std::string, std::vector<std::vector<ReferenceChainNode>>> result = 
-        parser.findReferenceChainsForMultipleClasses(classNames);
-    
-    for (std::map<std::string, std::vector<std::vector<ReferenceChainNode>>>::const_iterator it = result.begin(); 
-         it != result.end(); ++it) {
-        const std::string& className = it->first;
-        const std::vector<std::vector<ReferenceChainNode>>& chains = it->second;
-        
-        std::cout << "=========================================================\n";
-        std::cout << "类 '" << className << "' 的引用链结果:\n";
-        std::cout << "=========================================================\n";
-        
-        if (chains.empty()) {
-            std::cout << "未找到类 '" << className << "' 的引用链。\n\n";
-        } else {
-            std::cout << "找到 " << chains.size() << " 条引用链:\n";
-            for (size_t i = 0; i < chains.size(); i++) {
-                std::cout << "\n  引用链 " << (i + 1) << ":\n";
-                for (size_t j = 0; j < chains[i].size(); j++) {
-                    const ReferenceChainNode& node = chains[i][j];
-                    std::cout << "    " << node.className << " --[" << node.edgeType 
-                              << "]--> " << node.propertyName << "\n";
-                }
-            }
-            std::cout << "\n";
-        }
-    }
-
-    return 0;
 }

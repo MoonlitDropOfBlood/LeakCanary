@@ -9,6 +9,7 @@ struct ReferenceChainNode {
     std::string className;
     std::string edgeType;
     std::string propertyName;
+    int nodeId;  // 添加节点ID字段
 };
 
 struct HeapNode {
@@ -38,6 +39,7 @@ private:
 public:
     bool parseSnapshot(const std::string& filename);
     std::vector<std::vector<ReferenceChainNode>> findReferenceChains(const std::string& className);
+    std::vector<std::vector<ReferenceChainNode>> findReferenceChainsForNodeIds(const std::vector<int>& nodeIds);
     std::map<std::string, std::vector<std::vector<ReferenceChainNode>>> findReferenceChainsForMultipleClasses(
         const std::vector<std::string>& classNames);
 

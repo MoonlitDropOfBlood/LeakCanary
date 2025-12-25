@@ -25,3 +25,5 @@ export const parseHeapSnapshotAndFindChains: (
   filePath: string,
   classNames: string[]
 ) => HeapSnapshotResult;
+
+export const parseHeapSnapshotAndFindChainsForObjects: (filePath: string, objects: object[]) => HeapSnapshotResult;
