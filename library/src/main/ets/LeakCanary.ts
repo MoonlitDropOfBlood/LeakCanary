@@ -1,9 +1,10 @@
-import { uiObserver } from "@kit.ArkUI"
+import { UIContext, uiObserver } from "@kit.ArkUI"
 import { objWatch } from "./ObjWatch"
 
 export class LeakCanary {
 
   static registerRootWatch(rootComponent: object) {
+    LeakCanary.registerComponent(rootComponent)
     rootComponent['getUIContext']().getUIObserver().on("navDestinationUpdate", (navInfo) => {
       if (navInfo.state == uiObserver.NavDestinationState.ON_WILL_DISAPPEAR && navInfo.uniqueId) {
         let map: Map<number, WeakRef<object>> = rootComponent["childrenWeakrefMap_"]
@@ -17,7 +18,7 @@ export class LeakCanary {
     })
   }
 
-  static registerAllChild(pageComponent: object) {
+  private static registerAllChild(pageComponent: object) {
     objWatch.registry(pageComponent)
     let map: Map<number, WeakRef<object>> = pageComponent["childrenWeakrefMap_"]
     if (map.size == 0) {
@@ -27,5 +28,20 @@ export class LeakCanary {
       let childComponent = value.deref()
       LeakCanary.registerAllChild(childComponent)
     });
+  }
+
+  static registerComponent(component: object){
+    let uniqueId: number = component['getUniqueId']();
+    let uiContext:UIContext = component['getUIContext']()
+    uiContext.postFrameCallback({
+      onFrame:(frameTimeInNano:number)=>{
+        let node = uiContext.getFrameNodeByUniqueId(uniqueId)
+        node.commonEvent.setOnDisappear(()=>{
+          LeakCanary.registerAllChild(component)
+        })
+      },
+      onIdle:(timeLeftInNano: number)=>{}
+    })
+
   }
 }
