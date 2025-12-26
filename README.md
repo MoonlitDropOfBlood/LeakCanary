@@ -45,7 +45,7 @@ LeakCanary.registerRootWatch(rootComponent);
 手动注册需要监控的组件：
 
 ```typescript
-LeakCanary.registerAllChild(component);
+LeakCanary.registerComponent(component);
 ```
 
 ### LeakCanary
