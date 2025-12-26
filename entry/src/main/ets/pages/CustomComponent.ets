@@ -1,3 +1,4 @@
+import { LeakCanary } from "@duke/leak-canary";
 import { emitter } from "@kit.BasicServicesKit";
 import { a } from "../A";
 
@@ -7,6 +8,7 @@ export struct Custom1Component{
   aboutToAppear(): void {
     emitter.on("test", this.a)
     a.push(this)
+    LeakCanary.registerComponent(this)
   }
 
   a(){

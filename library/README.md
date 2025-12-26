@@ -45,15 +45,15 @@ LeakCanary.registerRootWatch(rootComponent);
 手动注册需要监控的组件：
 
 ```typescript
-LeakCanary.registerAllChild(component);
+LeakCanary.registerComponent(component);
 ```
 
 ### LeakCanary
 
-| 方法名               | 入参                    | 接口描述                       |
-|:------------------|:----------------------|:---------------------------|
-| registerRootWatch | rootComponent: object | 注册Navigation根组件进行内存泄漏监控    |
-| registerAllChild  | component: object     | 手动注册需要监控的组件及其所有子组件进行内存泄漏检测 |
+| 方法名               | 入参                    | 接口描述                            |
+|:------------------|:----------------------|:--------------------------------|
+| registerRootWatch | rootComponent: object | 注册Navigation根组件进行内存泄漏监控         |
+| registerComponent | component: object     | 手动注册监听，不用考虑时机                   |
 ### 工作原理
 
 LeakCanary通过以下方式实现内存泄漏检测：
@@ -78,7 +78,7 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 
 ## 规划
 
-- [ ] 手动注册时不在需要考虑时机
+- [x] 手动注册时不在需要考虑时机
 - [ ] 对于List下复用的组件兼容性测试及支持
 - [ ] 动态组件监听的实现方案
 - [ ] 对于Page的自动监听支持
