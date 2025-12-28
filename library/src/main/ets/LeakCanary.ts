@@ -1,6 +1,7 @@
 import { UIContext, uiObserver } from "@kit.ArkUI"
 import { getOpenHarmonyInternalApi } from "./Handler"
 import { objWatch } from "./ObjWatch"
+import { deviceInfo } from "@kit.BasicServicesKit"
 
 export class LeakCanary {
 
@@ -10,6 +11,9 @@ export class LeakCanary {
    * @since 20
    */
   static initRegisterGlobalWatch(){
+    if(deviceInfo.sdkApiVersion < 20){
+      return
+    }
     let openHarmonyInternalApi = getOpenHarmonyInternalApi()
     openHarmonyInternalApi((owner:WeakRef<object>,msg:string)=>{
       const component = owner.deref()
@@ -17,8 +21,6 @@ export class LeakCanary {
         objWatch.registry(component)
       }
     })
-    // let oldFunction = openHarmonyInternalApi['call']
-    // openHarmonyInternalApi['call'] =
   }
 
   /**

@@ -1,6 +1,6 @@
 {
   "name": "@duke/leak-canary",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "实时检测 ArkTS 组件内存泄漏",
   "main": "Index.ts",
   "author": "duke",
@@ -13,7 +13,5 @@
   ],
   "repository": "https://gitee.com/Duke_Bit/leak-canary",
   "homepage": "https://gitee.com/Duke_Bit",
-  "dependencies": {
-    "@duke/component-lifecycle": "^1.0.3"
-  }
+  "dependencies": {}
 }
