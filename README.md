@@ -32,7 +32,15 @@ import { LeakCanary } from '@duke/leak-canary';
 
 ### 核心API
 
-#### 初始化监控
+#### 全局初始化监控（推荐）API 20开始
+
+在 EntryAbility 中初始化 LeakCanary 全局监控：
+
+```typescript
+LeakCanary.initRegisterGlobalWatch();
+```
+
+#### 初始化监控 API 20(不含)以下
 
 初始化LeakCanary并传入根组件：
 
@@ -40,9 +48,10 @@ import { LeakCanary } from '@duke/leak-canary';
 LeakCanary.registerRootWatch(rootComponent);
 ```
 
-#### 手动注册组件
 
-手动注册需要监控的组件：
+#### 手动注册组件（可选）
+
+手动注册需要监控的组件（仅在特殊场景下使用）：
 
 ```typescript
 LeakCanary.registerComponent(component);
@@ -50,10 +59,11 @@ LeakCanary.registerComponent(component);
 
 ### LeakCanary
 
-| 方法名               | 入参                    | 接口描述                            |
-|:------------------|:----------------------|:--------------------------------|
-| registerRootWatch | rootComponent: object | 注册Navigation根组件进行内存泄漏监控         |
-| registerComponent | component: object     | 手动注册监听，不用考虑时机                   |
+| 方法名                     | 入参                    | 接口描述                         |
+|:------------------------|:----------------------|:-----------------------------|
+| initRegisterGlobalWatch | -                     | 全局初始化内存泄漏监控，自动监听所有自定义组件      |
+| registerRootWatch       | rootComponent: object | 注册Navigation根组件进行内存泄漏监控（已弃用） |
+| registerComponent       | component: object     | 手动注册监听，不用考虑时机（已弃用）           |
 ### 工作原理
 
 LeakCanary通过以下方式实现内存泄漏检测：
@@ -67,10 +77,10 @@ LeakCanary通过以下方式实现内存泄漏检测：
 
 ## 约束与限制
 
+- 受限于内部API的限制，目前仅支持API 20(含)HarmonyOS6.0以上的设备 进行全局内存泄漏监控
 - 对于@Entry router 下的组件没有很好的自动监控方式，需要手动监控
 - 基于目前仅在页面销毁前进行组件注册的方式，对于动态组件可能会监控不到，如if 不满足条件后，但是实际泄漏，则无法被检测到，如有需要，建议手动监控
 - 该库不建议在生产环境使用，可能会增加卡顿或者ANR
-- 手动注册监听，需要在组件销毁前，不然可能会产生误报
 
 在下述版本验证通过：
 
@@ -79,9 +89,10 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 ## 规划
 
 - [x] 手动注册时不在需要考虑时机
-- [ ] 对于List下复用的组件兼容性测试及支持
-- [ ] 动态组件监听的实现方案
-- [ ] 对于Page的自动监听支持
+- [x] ❗全局自动监听所有自定义组件
+- [x] ❗对于List下复用的组件兼容性测试及支持
+- [x] ❗动态组件监听的实现方案
+- [x] ❗对于Page的自动监听支持
 - [ ] 添加数据库，存储泄漏信息，提供查询功能
 - [ ] 添加内存泄漏检测报告页面，分近期和全部
 - [ ] 添加通知，及时告知泄漏消息

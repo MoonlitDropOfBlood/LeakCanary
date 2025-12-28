@@ -1,8 +1,33 @@
 import { UIContext, uiObserver } from "@kit.ArkUI"
+import { getOpenHarmonyInternalApi } from "./Handler"
 import { objWatch } from "./ObjWatch"
+import { deviceInfo } from "@kit.BasicServicesKit"
 
 export class LeakCanary {
 
+  /**
+   * 初始化全局自定义组件监听
+   * 全新的监听方式
+   * @since 20
+   */
+  static initRegisterGlobalWatch(){
+    if(deviceInfo.sdkApiVersion < 20){
+      return
+    }
+    let openHarmonyInternalApi = getOpenHarmonyInternalApi()
+    openHarmonyInternalApi((owner:WeakRef<object>,msg:string)=>{
+      const component = owner.deref()
+      if(component) {
+        objWatch.registry(component)
+      }
+    })
+  }
+
+  /**
+   * 注册根页面组件监听
+   * @param rootComponent
+   * @since 12
+   */
   static registerRootWatch(rootComponent: object) {
     LeakCanary.registerComponent(rootComponent)
     rootComponent['getUIContext']().getUIObserver().on("navDestinationUpdate", (navInfo) => {
@@ -30,6 +55,11 @@ export class LeakCanary {
     });
   }
 
+  /**
+   * 注册单个组件监听
+   * @param component 自定义组件
+   * @since 12
+   */
   static registerComponent(component: object){
     let uniqueId: number = component['getUniqueId']();
     let uiContext:UIContext = component['getUIContext']()

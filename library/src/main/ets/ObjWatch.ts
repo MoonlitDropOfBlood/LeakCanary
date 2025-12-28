@@ -4,7 +4,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 class ObjWatch {
   cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
 
-  targetGC:WeakRef<object>|undefined
+  private targetGC:WeakRef<object>|undefined
 
   registry(owner: object) {
     this.cacheValue.add(new WeakRef(owner))

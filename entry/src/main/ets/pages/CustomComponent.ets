@@ -8,7 +8,6 @@ export struct Custom1Component{
   aboutToAppear(): void {
     emitter.on("test", this.a)
     a.push(this)
-    LeakCanary.registerComponent(this)
   }
 
   a(){
