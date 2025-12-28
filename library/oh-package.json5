@@ -13,5 +13,7 @@
   ],
   "repository": "https://gitee.com/Duke_Bit/leak-canary",
   "homepage": "https://gitee.com/Duke_Bit",
-  "dependencies": {}
+  "dependencies": {
+    "@duke/component-lifecycle": "^1.0.3"
+  }
 }

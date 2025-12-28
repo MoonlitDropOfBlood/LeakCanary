@@ -8,7 +8,6 @@ struct Index {
   @State message: string = 'Hello World';
 
   aboutToAppear(): void {
-    LeakCanary.registerRootWatch(this)
   }
 
   build() {
