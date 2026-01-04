@@ -19,7 +19,7 @@ class ObjWatch {
             heldValue.cacheValue.remove(it)
           }else{
             if(noGC.add(info)) {
-              hilog.error(0x0001, "GC", `组件 ${owner.constructor.name} 可能发生泄漏，hash值为${util.getHash(info)}`)
+              hilog.error(0x0001, "GC", `组件 ${info.constructor.name} 可能发生泄漏，hash值为${util.getHash(info)}`)
             }
           }
         })

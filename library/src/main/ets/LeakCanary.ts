@@ -2,8 +2,11 @@ import { UIContext, uiObserver } from "@kit.ArkUI"
 import { getOpenHarmonyInternalApi } from "./Handler"
 import { objWatch } from "./ObjWatch"
 import { deviceInfo } from "@kit.BasicServicesKit"
+import hilog from "@ohos.hilog"
 
 export class LeakCanary {
+
+  private static isInit: boolean = false
 
   /**
    * 初始化全局自定义组件监听
@@ -12,15 +15,21 @@ export class LeakCanary {
    */
   static initRegisterGlobalWatch(){
     if(deviceInfo.sdkApiVersion < 20){
+      hilog.warn(0x0001, "LeakCanary", "initRegisterGlobalWatch only support sdkApiVersion >= 20")
       return
     }
-    let openHarmonyInternalApi = getOpenHarmonyInternalApi()
-    openHarmonyInternalApi((owner:WeakRef<object>,msg:string)=>{
-      const component = owner.deref()
-      if(component) {
-        objWatch.registry(component)
-      }
-    })
+    try {
+      let openHarmonyInternalApi = getOpenHarmonyInternalApi()
+      openHarmonyInternalApi((owner:WeakRef<object>,msg:string)=>{
+        const component = owner.deref()
+        if(component) {
+          objWatch.registry(component)
+        }
+      })
+      LeakCanary.isInit = true
+    }catch (e) {
+      hilog.error(0x0001, "LeakCanary", "initRegisterGlobalWatch error " + e)
+    }
   }
 
   /**

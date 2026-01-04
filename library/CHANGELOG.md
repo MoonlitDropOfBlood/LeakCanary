@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.2.1] 2025.12.25
+
+- 增强：initRegisterGlobalWatch 不存在时，不会导致应用crash
+- 修复：initRegisterGlobalWatch 重复调用时，会导致重复监听
+- 修复：监听全局组件时，会名称打印错误
+
 ## [v1.2.0] 2025.12
 
 - 添加全局组件监听功能，自动监控所有自定义组件（API20 以上）
