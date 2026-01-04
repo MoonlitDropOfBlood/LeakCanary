@@ -1,6 +1,6 @@
 # Changelog
 
-## [v1.2.1] 2025.12.25
+## [v1.2.1] 2026.01
 
 - 增强：initRegisterGlobalWatch 不存在时，不会导致应用crash
 - 修复：initRegisterGlobalWatch 重复调用时，会导致重复监听
