@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.3.0] 2026.01
+
+- 新增通知功能，检测到内存泄漏时，会弹出通知提示
+
 ## [v1.2.1] 2026.01
 
 - 增强：initRegisterGlobalWatch 不存在时，不会导致应用crash

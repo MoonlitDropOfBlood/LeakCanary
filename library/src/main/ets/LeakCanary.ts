@@ -3,6 +3,7 @@ import { getOpenHarmonyInternalApi } from "./Handler"
 import { objWatch } from "./ObjWatch"
 import { deviceInfo } from "@kit.BasicServicesKit"
 import hilog from "@ohos.hilog"
+import { LeakNotification } from "./LeakNotification"
 
 export class LeakCanary {
 
@@ -18,6 +19,10 @@ export class LeakCanary {
       hilog.warn(0x0001, "LeakCanary", "initRegisterGlobalWatch only support sdkApiVersion >= 20")
       return
     }
+    if(LeakCanary.isInit){
+      hilog.warn(0x0001, "LeakCanary", "initRegisterGlobalWatch already init")
+      return
+    }
     try {
       let openHarmonyInternalApi = getOpenHarmonyInternalApi()
       openHarmonyInternalApi((owner:WeakRef<object>,msg:string)=>{
@@ -27,6 +32,7 @@ export class LeakCanary {
         }
       })
       LeakCanary.isInit = true
+      LeakNotification.getInstance()
     }catch (e) {
       hilog.error(0x0001, "LeakCanary", "initRegisterGlobalWatch error " + e)
     }
@@ -50,6 +56,7 @@ export class LeakCanary {
         })
       }
     })
+    LeakNotification.getInstance()
   }
 
   private static registerAllChild(pageComponent: object) {
