@@ -105,7 +105,7 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 ## 目录结构
 
 ````
-|---- WebSocket
+|---- LeakCanary
 |     |---- AppScrope  # 示例代码文件夹
 |     |---- entry  # 示例代码文件夹
 |---- library 
