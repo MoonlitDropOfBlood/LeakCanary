@@ -13,7 +13,7 @@ LeakCanary是一个为OpenHarmony开发的内存泄漏检测库，提供自动�
 
 ## 下载安装
 
-````
+````shell
 ohpm install @duke/leak-canary
 ````
 
@@ -26,7 +26,7 @@ OpenHarmony ohpm
 
 导入LeakCanary库：
 
-```typescript
+```extendtypescript
 import { LeakCanary } from '@duke/leak-canary';
 ```
 
@@ -36,7 +36,7 @@ import { LeakCanary } from '@duke/leak-canary';
 
 在 EntryAbility 中初始化 LeakCanary 全局监控：
 
-```typescript
+```extendtypescript
 LeakCanary.initRegisterGlobalWatch();
 ```
 
@@ -44,7 +44,7 @@ LeakCanary.initRegisterGlobalWatch();
 
 初始化LeakCanary并传入根组件：
 
-```typescript
+```extendtypescript
 LeakCanary.registerRootWatch(rootComponent);
 ```
 
@@ -53,7 +53,7 @@ LeakCanary.registerRootWatch(rootComponent);
 
 手动注册需要监控的组件（仅在特殊场景下使用）：
 
-```typescript
+```extendtypescript
 LeakCanary.registerComponent(component);
 ```
 
