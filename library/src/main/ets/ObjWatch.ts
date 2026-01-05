@@ -3,7 +3,8 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { LeakNotification } from './LeakNotification'
 
 class ObjWatch {
-  cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
+  private cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
+  private cacheGCCount:WeakMap<object, number> = new WeakMap()
 
   private targetGC:WeakRef<object>|undefined
 
@@ -20,10 +21,14 @@ class ObjWatch {
           if (info == undefined) {
             heldValue.cacheValue.remove(it)
           }else{
-            if(noGC.add(info)) {
-              hilog.error(0x0001, "GC", `组件 ${info.constructor.name} 可能发生泄漏，hash值为${util.getHash(info)}`)
-              if(firstLeak == undefined){
-                firstLeak = info.constructor.name
+            let oldCount = (heldValue.cacheGCCount.get(info) ?? 0) + 1
+            heldValue.cacheGCCount.set(info, oldCount)
+            if(oldCount >= 2) {
+              if (noGC.add(info)) {
+                hilog.error(0x0001, "GC", `组件 ${info.constructor.name} 可能发生泄漏，hash值为${util.getHash(info)}`)
+                if (firstLeak == undefined) {
+                  firstLeak = info.constructor.name
+                }
               }
             }
           }
