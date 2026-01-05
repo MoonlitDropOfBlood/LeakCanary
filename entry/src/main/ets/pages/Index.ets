@@ -1,6 +1,7 @@
 import { ZRouter } from '@hzw/zrouter';
 import { Custom1Component } from './CustomComponent';
 import { LeakCanary } from '@duke/leak-canary'
+import { notificationManager } from '@kit.NotificationKit';
 
 @Entry
 @Component
@@ -8,7 +9,9 @@ struct Index {
   @State message: string = 'Hello World';
 
   aboutToAppear(): void {
-    LeakCanary.registerRootWatch(this)
+    if(!notificationManager.isNotificationEnabledSync()){
+      notificationManager.requestEnableNotification()
+    }
   }
 
   build() {

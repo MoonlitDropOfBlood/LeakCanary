@@ -2,7 +2,7 @@
 
 ## 简介
 
-[![openHarmony](https://img.shields.io/badge/openharmony-v1.0.0-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v1.0.0)
+[![openHarmony](https://img.shields.io/badge/openharmony-v1.3.1-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v1.3.1)
 
 LeakCanary是一个为OpenHarmony开发的内存泄漏检测库，提供自动化的内存泄漏监控和检测功能。
 
@@ -13,7 +13,7 @@ LeakCanary是一个为OpenHarmony开发的内存泄漏检测库，提供自动�
 
 ## 下载安装
 
-````
+````shell
 ohpm install @duke/leak-canary
 ````
 
@@ -26,34 +26,44 @@ OpenHarmony ohpm
 
 导入LeakCanary库：
 
-```typescript
+```extendtypescript
 import { LeakCanary } from '@duke/leak-canary';
 ```
 
 ### 核心API
 
-#### 初始化监控
+#### 全局初始化监控（推荐）API 20开始
+
+在 EntryAbility 中初始化 LeakCanary 全局监控：
+
+```extendtypescript
+LeakCanary.initRegisterGlobalWatch();
+```
+
+#### 初始化监控 API 20(不含)以下
 
 初始化LeakCanary并传入根组件：
 
-```typescript
+```extendtypescript
 LeakCanary.registerRootWatch(rootComponent);
 ```
 
-#### 手动注册组件
 
-手动注册需要监控的组件：
+#### 手动注册组件（可选）
 
-```typescript
-LeakCanary.registerAllChild(component);
+手动注册需要监控的组件（仅在特殊场景下使用）：
+
+```extendtypescript
+LeakCanary.registerComponent(component);
 ```
 
 ### LeakCanary
 
-| 方法名               | 入参                    | 接口描述                       |
-|:------------------|:----------------------|:---------------------------|
-| registerRootWatch | rootComponent: object | 注册Navigation根组件进行内存泄漏监控    |
-| registerAllChild  | component: object     | 手动注册需要监控的组件及其所有子组件进行内存泄漏检测 |
+| 方法名                     | 入参                    | 接口描述                         |
+|:------------------------|:----------------------|:-----------------------------|
+| initRegisterGlobalWatch | -                     | 全局初始化内存泄漏监控，自动监听所有自定义组件      |
+| registerRootWatch       | rootComponent: object | 注册Navigation根组件进行内存泄漏监控（已弃用） |
+| registerComponent       | component: object     | 手动注册监听，不用考虑时机（已弃用）           |
 ### 工作原理
 
 LeakCanary通过以下方式实现内存泄漏检测：
@@ -67,10 +77,10 @@ LeakCanary通过以下方式实现内存泄漏检测：
 
 ## 约束与限制
 
+- 受限于内部API的限制，目前仅支持API 20(含)HarmonyOS6.0以上的设备 进行全局内存泄漏监控
 - 对于@Entry router 下的组件没有很好的自动监控方式，需要手动监控
 - 基于目前仅在页面销毁前进行组件注册的方式，对于动态组件可能会监控不到，如if 不满足条件后，但是实际泄漏，则无法被检测到，如有需要，建议手动监控
 - 该库不建议在生产环境使用，可能会增加卡顿或者ANR
-- 手动注册监听，需要在组件销毁前，不然可能会产生误报
 
 在下述版本验证通过：
 
@@ -78,18 +88,24 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 
 ## 规划
 
-- [ ] 手动注册时不在需要考虑时机
-- [ ] 对于List下复用的组件兼容性测试及支持
-- [ ] 动态组件监听的实现方案
-- [ ] 对于Page的自动监听支持
-- [ ] 添加数据库，存储泄漏信息，提供查询功能
-- [ ] 添加内存泄漏检测报告页面，分近期和全部
-- [ ] 添加通知，及时告知泄漏消息
+已完成：
+* [已完成] 手动注册时不在需要考虑时机
+* [已完成] 添加通知功能，检测到内存泄漏时，会弹出通知提示
+
+受限：API 20以上支持全局自动监听所有自定义组件
+* [已完成] ❗全局自动监听所有自定义组件
+* [已完成] ❗对于List下复用的组件兼容性测试及支持
+* [已完成] ❗动态组件监听的实现方案
+* [已完成] ❗对于Page的自动监听支持
+
+未完成：
+* [未完成] 添加数据库，存储泄漏信息，提供查询功能
+* [未完成] 添加内存泄漏检测报告页面，分近期和全部
 
 ## 目录结构
 
 ````
-|---- WebSocket
+|---- LeakCanary
 |     |---- AppScrope  # 示例代码文件夹
 |     |---- entry  # 示例代码文件夹
 |---- library 

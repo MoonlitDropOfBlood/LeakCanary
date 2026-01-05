@@ -1,14 +1,14 @@
 import { HashSet, LinkedList, util } from '@kit.ArkTS'
 import { hidebug, hilog } from '@kit.PerformanceAnalysisKit'
-import { Context } from '@kit.AbilityKit'
-
+import { LeakNotification } from './LeakNotification'
 
 class ObjWatch {
-  cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
+  private cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
+  private cacheGCCount:WeakMap<object, number> = new WeakMap()
 
-  targetGC:WeakRef<object>|undefined
+  private targetGC:WeakRef<object>|undefined
 
-  context:Context
+  private context:Context
 
 
   registry(owner: object) {
@@ -20,17 +20,28 @@ class ObjWatch {
       let gcSource = new Object()
       this.targetGC = new WeakRef(gcSource)
       const registry = new FinalizationRegistry((heldValue: ObjWatch) => {
-        let objects:HashSet<object> = new HashSet()
+        let noGC = new HashSet<object>()
+        let firstLeak: string = undefined
         heldValue.cacheValue.forEach((it: WeakRef<object>) => {
           let info = it.deref()
           if (info == undefined) {
             heldValue.cacheValue.remove(it)
           }else{
-            objects.add(info)
+            let oldCount = (heldValue.cacheGCCount.get(info) ?? 0) + 1
+            heldValue.cacheGCCount.set(info, oldCount)
+            if(oldCount >= 2) {
+              if (noGC.add(info)) {
+                hilog.error(0x0001, "GC", `组件 ${info.constructor.name} 可能发生泄漏，hash值为${util.getHash(info)}`)
+                if (firstLeak == undefined) {
+                  firstLeak = info.constructor.name
+                }
+              }
+            }
           }
         })
-        if(objects.length > 0) {
-          hilog.error(0x0001, "GC", "可能泄漏的组件为" + objects.length)
+        if(noGC.length > 0) {
+          hilog.error(0x0001,"GC","可能泄漏的组件为数为 " + noGC.length)
+          LeakNotification.getInstance().publishNotification(noGC.length, firstLeak)
           hidebug.dumpJsHeapData("heapData")
           heldValue.analyzeHeapSnapshot(heldValue.context.filesDir+"/heapData.heapsnapshot",  Array.from(objects.values()))
         }

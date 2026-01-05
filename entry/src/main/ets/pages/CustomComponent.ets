@@ -1,3 +1,4 @@
+import { LeakCanary } from "@duke/leak-canary";
 import { emitter } from "@kit.BasicServicesKit";
 import { a } from "../A";
 
