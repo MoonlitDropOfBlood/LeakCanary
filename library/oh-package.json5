@@ -1,8 +1,8 @@
 {
   "name": "@duke/leak-canary",
-  "version": "1.3.1",
+  "version": "2.0.0",
   "description": "实时检测 ArkTS 组件内存泄漏",
-  "main": "Index.ts",
+  "main": "Index.ets",
   "author": "duke",
   "license": "MIT",
   "keywords": [
@@ -13,5 +13,7 @@
   ],
   "repository": "https://gitee.com/Duke_Bit/leak-canary",
   "homepage": "https://gitee.com/Duke_Bit",
-  "dependencies": {}
+  "dependencies": {
+    "libleakcanary.so": "file:./src/main/cpp/types/libleakcanary"
+  }
 }

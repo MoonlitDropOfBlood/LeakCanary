@@ -1,6 +1,7 @@
 import { ZRoute, ZRouter } from "@hzw/zrouter"
-import { a } from "../A"
 import { Custom1Component } from "./CustomComponent"
+
+const LeakTest:object[] = []
 
 @ZRoute({ name: "entry/TestNav1Child",useV2:true,useTemplate:true})
 @ComponentV2
@@ -9,7 +10,7 @@ export struct TestNav1Child {
   a:number[] = [1,2,3]
 
   aboutToAppear(): void {
-    a.push(this)
+    LeakTest.push(this)
   }
 
   onDidBuild(): void {

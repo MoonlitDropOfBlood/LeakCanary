@@ -1,6 +1,8 @@
 import { HashSet, LinkedList, util } from '@kit.ArkTS'
-import { hilog } from '@kit.PerformanceAnalysisKit'
+import { hidebug, hilog } from '@kit.PerformanceAnalysisKit'
 import { LeakNotification } from './LeakNotification'
+import { systemDateTime } from '@kit.BasicServicesKit'
+import { common } from '@kit.AbilityKit'
 
 class ObjWatch {
   private cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
@@ -8,7 +10,13 @@ class ObjWatch {
 
   private targetGC:WeakRef<object>|undefined
 
+  private context:common.ApplicationContext
+
+
   registry(owner: object) {
+    if(!this.context){
+      this.context = owner['getUIContext']().getHostContext().getApplicationContext()
+    }
     this.cacheValue.add(new WeakRef(owner))
     if (this.targetGC?.deref() == undefined) {
       let gcSource = new Object()
@@ -33,14 +41,18 @@ class ObjWatch {
             }
           }
         })
-        hilog.error(0x0001,"GC","可能泄漏的组件为数为 " + noGC.length)
         if(noGC.length > 0) {
+          hilog.error(0x0001,"GC","可能泄漏的组件为数为 " + noGC.length)
           LeakNotification.getInstance().publishNotification(noGC.length, firstLeak)
+          const file = systemDateTime.getTime()+"-泄漏"
+          hidebug.dumpJsHeapData(file)
+          heldValue.analyzeHeapSnapshot(heldValue.context.filesDir+"/"+file+".heapsnapshot",  Array.from(noGC.values()))
         }
       });
       registry.register(gcSource, this)
     }
   }
+  analyzeHeapSnapshot:(file:string,objects:object[])=>void
 }
 
 export const objWatch = new ObjWatch()

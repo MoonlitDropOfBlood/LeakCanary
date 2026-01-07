@@ -1,13 +1,13 @@
-import { LeakCanary } from "@duke/leak-canary";
 import { emitter } from "@kit.BasicServicesKit";
-import { a } from "../A";
+
+const LeakTest:object[] = []
 
 @ComponentV2
 export struct Custom1Component{
 
   aboutToAppear(): void {
     emitter.on("test", this.a)
-    a.push(this)
+    LeakTest.push(this)
   }
 
   a(){
