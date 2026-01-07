@@ -1,227 +1,260 @@
 #include <string>
 #include <vector>
-#include <map>
+#include <cstring>
 #include "napi/native_api.h"
 // 声明而非包含heap_snapshot_parser.cpp
 #include "heap_snapshot_parser.h"
 
-// 边类型映射函数声明
-std::string mapEdgeType(int typeCode);
+// 实现NAPI接口
 
-namespace {
-    // 将ReferenceChainNode转换为JavaScript对象
-    napi_value CreateReferenceChainNode(napi_env env, const ReferenceChainNode& node) {
-        napi_value jsNode;
-        napi_create_object(env, &jsNode);
-        
-        // className
-        napi_value classNameValue;
-        napi_create_string_utf8(env, node.className.c_str(), NAPI_AUTO_LENGTH, &classNameValue);
-        napi_set_named_property(env, jsNode, "className", classNameValue);
-        
-        // edgeType
-        napi_value edgeTypeValue;
-        napi_create_string_utf8(env, node.edgeType.c_str(), NAPI_AUTO_LENGTH, &edgeTypeValue);
-        napi_set_named_property(env, jsNode, "edgeType", edgeTypeValue);
-        
-        // propertyName
-        napi_value propertyNameValue;
-        napi_create_string_utf8(env, node.propertyName.c_str(), NAPI_AUTO_LENGTH, &propertyNameValue);
-        napi_set_named_property(env, jsNode, "propertyName", propertyNameValue);
-        
-        // nodeId
-        napi_value nodeIdValue;
-        napi_create_int32(env, node.nodeId, &nodeIdValue);
-        napi_set_named_property(env, jsNode, "nodeId", nodeIdValue);
-        
-        return jsNode;
+// 创建任务
+static napi_value CreateTask(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = { nullptr };
+    
+    // 获取参数
+    if (napi_get_cb_info(env, info, &argc, args, nullptr, nullptr) != napi_ok) {
+        return nullptr;
     }
     
-    // 将引用链转换为JavaScript数组
-    napi_value CreateReferenceChain(napi_env env, const std::vector<ReferenceChainNode>& chain) {
-        napi_value jsChain;
-        napi_create_array_with_length(env, chain.size(), &jsChain);
-        
-        for (size_t i = 0; i < chain.size(); i++) {
-            napi_value jsNode = CreateReferenceChainNode(env, chain[i]);
-            napi_set_element(env, jsChain, i, jsNode);
-        }
-        
-        return jsChain;
+    if (argc < 1) {
+        napi_throw_error(env, nullptr, "需要一个参数: 文件路径");
+        return nullptr;
     }
     
-    // 将结果转换为JavaScript对象
-    napi_value CreateResultObject(napi_env env, 
-                                const std::map<std::string, std::vector<std::vector<ReferenceChainNode>>>& result) {
-        napi_value jsResult;
-        napi_create_object(env, &jsResult);
-        
-        for (std::map<std::string, std::vector<std::vector<ReferenceChainNode>>>::const_iterator it = result.begin();
-             it != result.end(); ++it) {
-            const std::string& className = it->first;
-            const std::vector<std::vector<ReferenceChainNode>>& chains = it->second;
-            
-            // 创建该类的引用链数组
-            napi_value jsClassChains;
-            napi_create_array_with_length(env, chains.size(), &jsClassChains);
-            
-            for (size_t i = 0; i < chains.size(); i++) {
-                napi_value jsChain = CreateReferenceChain(env, chains[i]);
-                napi_set_element(env, jsClassChains, i, jsChain);
-            }
-            
-            // 将类名和引用链数组添加到结果对象中
-            napi_value jsClassName;
-            napi_create_string_utf8(env, className.c_str(), NAPI_AUTO_LENGTH, &jsClassName);
-            napi_set_named_property(env, jsResult, className.c_str(), jsClassChains);
-        }
-        
-        return jsResult;
+    // 解析文件路径参数
+    size_t filePathLength = 0;
+    if (napi_get_value_string_utf8(env, args[0], nullptr, 0, &filePathLength) != napi_ok) {
+        return nullptr;
     }
     
-    // NAPI函数：解析堆快照并查找引用链（按类名）
-    napi_value ParseHeapSnapshotAndFindChains(napi_env env, napi_callback_info info) {
-        size_t argc = 2;
-        napi_value args[2];
-        napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-        
-        if (argc < 2) {
-            napi_throw_error(env, nullptr, "Wrong number of arguments. Expected: filepath, classNames");
-            napi_value undefined;
-            napi_get_undefined(env, &undefined);
-            return undefined;
-        }
-        
-        // 获取文件路径参数
-        size_t filePathLength;
-        napi_get_value_string_utf8(env, args[0], nullptr, 0, &filePathLength);
-        std::string filePath(filePathLength, '\0');
-        napi_get_value_string_utf8(env, args[0], &filePath[0], filePathLength + 1, nullptr);
-        
-        // 获取类名数组参数
-        uint32_t arrayLength;
-        napi_get_array_length(env, args[1], &arrayLength);
-        
-        std::vector<std::string> classNames;
-        for (uint32_t i = 0; i < arrayLength; i++) {
-            napi_value jsElement;
-            napi_get_element(env, args[1], i, &jsElement);
-            
-            size_t elementLength;
-            napi_get_value_string_utf8(env, jsElement, nullptr, 0, &elementLength);
-            std::string element(elementLength, '\0');
-            napi_get_value_string_utf8(env, jsElement, &element[0], elementLength + 1, nullptr);
-            
-            classNames.push_back(element);
-        }
-        
-        // 执行解析和查找引用链的操作
-        HeapSnapshotParser parser;
-        if (!parser.parseSnapshot(filePath)) {
-            napi_throw_error(env, nullptr, "Failed to parse heap snapshot file");
-            napi_value undefined;
-            napi_get_undefined(env, &undefined);
-            return undefined;
-        }
-        
-        // 为每个类名查找引用链
-        std::map<std::string, std::vector<std::vector<ReferenceChainNode>>> result = 
-            parser.findReferenceChainsForMultipleClasses(classNames);
-        
-        // 将结果转换为JavaScript对象
-        napi_value jsResult = CreateResultObject(env, result);
-        return jsResult;
+    char* filePathBuffer = new char[filePathLength + 1];
+    if (napi_get_value_string_utf8(env, args[0], filePathBuffer, filePathLength + 1, nullptr) != napi_ok) {
+        delete[] filePathBuffer;
+        return nullptr;
     }
     
-    // NAPI函数：解析堆快照并查找引用链（按对象数组）
-    napi_value ParseHeapSnapshotAndFindChainsForObjects(napi_env env, napi_callback_info info) {
-        size_t argc = 2;
-        napi_value args[2];
-        napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-        
-        if (argc < 2) {
-            napi_throw_error(env, nullptr, "Wrong number of arguments. Expected: filepath, objects");
-            napi_value undefined;
-            napi_get_undefined(env, &undefined);
-            return undefined;
-        }
-        
-        // 获取文件路径参数
-        size_t filePathLength;
-        napi_get_value_string_utf8(env, args[0], nullptr, 0, &filePathLength);
-        std::string filePath(filePathLength, '\0');
-        napi_get_value_string_utf8(env, args[0], &filePath[0], filePathLength + 1, nullptr);
-        
-        // 获取对象数组参数
-        uint32_t arrayLength;
-        napi_get_array_length(env, args[1], &arrayLength);
-        
-        std::vector<int> nodeIds;
-        for (uint32_t i = 0; i < arrayLength; i++) {
-            napi_value jsElement;
-            napi_get_element(env, args[1], i, &jsElement);
-            
-            // 从对象中获取nodeId
-            napi_value nodeIdValue;
-            napi_status status = napi_get_named_property(env, jsElement, "nodeId", &nodeIdValue);
-            if (status == napi_ok) {
-                int32_t nodeId;
-                napi_get_value_int32(env, nodeIdValue, &nodeId);
-                nodeIds.push_back(nodeId);
-            }
-        }
-        
-        // 执行解析和查找引用链的操作
-        HeapSnapshotParser parser;
-        if (!parser.parseSnapshot(filePath)) {
-            napi_throw_error(env, nullptr, "Failed to parse heap snapshot file");
-            napi_value undefined;
-            napi_get_undefined(env, &undefined);
-            return undefined;
-        }
-        
-        // 为每个对象ID查找引用链
-        std::vector<std::vector<ReferenceChainNode>> chains = 
-            parser.findReferenceChainsForNodeIds(nodeIds);
-        
-        // 将结果转换为JavaScript数组
-        napi_value jsResult;
-        napi_create_array_with_length(env, chains.size(), &jsResult);
-        
-        for (size_t i = 0; i < chains.size(); i++) {
-            napi_value jsChain = CreateReferenceChain(env, chains[i]);
-            napi_set_element(env, jsResult, i, jsChain);
-        }
-        
-        return jsResult;
-    }
+    std::string filePath(filePathBuffer);
+    delete[] filePathBuffer;
+    
+    // 创建任务
+    int taskId = TaskManager::createTask(filePath);
+    
+    // 返回任务ID
+    napi_value result;
+    napi_create_int32(env, taskId, &result);
+    return result;
 }
 
-// 模块初始化函数
-static napi_value Init(napi_env env, napi_value exports) {
-    // 定义模块的公共接口
-    napi_property_descriptor desc[] = {
-        {"parseHeapSnapshotAndFindChains", nullptr, ParseHeapSnapshotAndFindChains, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"parseHeapSnapshotAndFindChainsForObjects", nullptr, ParseHeapSnapshotAndFindChainsForObjects, nullptr, nullptr, nullptr, napi_default, nullptr}
-    };
+// 销毁任务
+static napi_value DestroyTask(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = { nullptr };
     
+    // 获取参数
+    if (napi_get_cb_info(env, info, &argc, args, nullptr, nullptr) != napi_ok) {
+        return nullptr;
+    }
+    
+    if (argc < 1) {
+        napi_throw_error(env, nullptr, "需要一个参数: 任务ID");
+        return nullptr;
+    }
+    
+    // 解析任务ID参数
+    int32_t taskId = 0;
+    if (napi_get_value_int32(env, args[0], &taskId) != napi_ok) {
+        return nullptr;
+    }
+    
+    // 销毁任务
+    bool success = TaskManager::destroyTask(taskId);
+    
+    // 返回结果
+    napi_value result;
+    napi_get_boolean(env, success, &result);
+    return result;
+}
+
+// 获取最短引用链到GC根
+static napi_value GetShortestPathToGCRoot(napi_env env, napi_callback_info info) {
+    size_t argc = 3;
+    napi_value args[3] = { nullptr, nullptr, nullptr };
+    
+    // 获取参数
+    if (napi_get_cb_info(env, info, &argc, args, nullptr, nullptr) != napi_ok) {
+        return nullptr;
+    }
+    
+    if (argc < 2) {
+        napi_throw_error(env, nullptr, "需要两个参数: 任务ID和节点ID");
+        return nullptr;
+    }
+    
+    // 解析任务ID参数
+    int32_t taskId = 0;
+    if (napi_get_value_int32(env, args[0], &taskId) != napi_ok) {
+        return nullptr;
+    }
+    
+    // 解析节点name参数
+    size_t nodeNameLength = 0;
+    if (napi_get_value_string_utf8(env, args[1], nullptr, 0, &nodeNameLength) != napi_ok) {
+        return nullptr;
+    }
+    
+    char* nodeNameBuffer = new char[nodeNameLength + 1];
+    if (napi_get_value_string_utf8(env, args[1], nodeNameBuffer, nodeNameLength + 1, nullptr) != napi_ok) {
+        delete[] nodeNameBuffer;
+        return nullptr;
+    }
+    
+    std::string nodeName(nodeNameBuffer);
+    delete[] nodeNameBuffer;
+    
+    // 解析最大路径数参数
+    int32_t maxPaths = 5; // 默认最大路径数
+    if (argc >= 3) {
+        if (napi_get_value_int32(env, args[2], &maxPaths) != napi_ok) {
+            return nullptr;
+        }
+    }
+    
+    // 获取任务
+    TaskHeapSnapshot* task = TaskManager::getTask(taskId);
+    if (!task) {
+        napi_throw_error(env, nullptr, "无效的任务ID");
+        return nullptr;
+    }
+    
+    // 查找最短引用链
+    std::vector<std::vector<std::vector<ReferenceChain>>> resultChains = task->getShortestPathToGCRootByName(nodeName, maxPaths);
+    
+    // 将结果转换为NAPI数组
+    napi_value result;
+    napi_create_array_with_length(env, resultChains.size(), &result);
+    
+    for (size_t i = 0; i < resultChains.size(); i++) {
+        napi_value iArray;
+        napi_create_array_with_length(env, resultChains[i].size(), &iArray);
+        for (size_t q = 0; q < resultChains[i].size(); q++) {
+            const std::vector<ReferenceChain>& chain = resultChains[i][q];
+        
+            // 创建链数组
+            napi_value chainArray;
+            napi_create_array_with_length(env, chain.size(), &chainArray);
+        
+            for (size_t j = 0; j < chain.size(); j++) {
+                const ReferenceChain& refChain = chain[j];
+            
+                // 创建链对象
+                napi_value chainObj;
+                napi_create_object(env, &chainObj);
+            
+                // 设置引用者信息
+                napi_value referrerObj;
+                napi_create_object(env, &referrerObj);
+                
+                napi_value referrerNodeId;
+                napi_create_int32(env, refChain.referrer.id, &referrerNodeId);
+                napi_set_named_property(env, referrerObj, "nodeId", referrerNodeId);
+            
+                napi_value referrerName;
+                napi_create_string_utf8(env, refChain.referrer.name.c_str(), refChain.referrer.name.length(), &referrerName);
+                napi_set_named_property(env, referrerObj, "name", referrerName);
+            
+                napi_value referrerType;
+                napi_create_string_utf8(env, refChain.referrer.type.c_str(), refChain.referrer.type.length(), &referrerType);
+                napi_set_named_property(env, referrerObj, "type", referrerType);
+            
+                // 处理path字段，可能为空字符串
+                napi_value referrerPath;
+                napi_create_string_utf8(env, refChain.referrer.path.c_str(), refChain.referrer.path.length(), &referrerPath);
+                napi_set_named_property(env, referrerObj, "path", referrerPath);
+            
+                // 处理line字段，可能为0
+                napi_value referrerLine;
+                napi_create_int32(env, refChain.referrer.line, &referrerLine);
+                napi_set_named_property(env, referrerObj, "line", referrerLine);
+            
+                // 设置引用者
+                napi_set_named_property(env, chainObj, "from", referrerObj);
+            
+                // 设置edgeType
+                napi_value edgeTypeVal;
+                napi_create_string_utf8(env, refChain.edge_type.c_str(), refChain.edge_type.length(), &edgeTypeVal);
+                napi_set_named_property(env, chainObj, "edgeType", edgeTypeVal);
+            
+                // 设置被引用者信息
+                napi_value currentNodeObj;
+                napi_create_object(env, &currentNodeObj);
+                
+                // 设置nodeId
+                napi_value currentNodeId;
+                napi_create_int32(env, refChain.current_node.id, &currentNodeId);
+                napi_set_named_property(env, currentNodeObj, "nodeId", currentNodeId);
+                
+                // 设置name
+                napi_value currentNodeName;
+                napi_create_string_utf8(env, refChain.current_node.name.c_str(), refChain.current_node.name.length(), &currentNodeName);
+                napi_set_named_property(env, currentNodeObj, "name", currentNodeName);
+                
+                // 设置type
+                napi_value currentNodeType;
+                napi_create_string_utf8(env, refChain.current_node.type.c_str(), refChain.current_node.type.length(), &currentNodeType);
+                napi_set_named_property(env, currentNodeObj, "type", currentNodeType);
+            
+                // 处理path字段，可能为空字符串
+                napi_value currentNodePath;
+                napi_create_string_utf8(env, refChain.current_node.path.c_str(), refChain.current_node.path.length(), &currentNodePath);
+                napi_set_named_property(env, currentNodeObj, "path", currentNodePath);
+                
+                // 处理line字段，可能为0
+                napi_value currentNodeLine;
+                napi_create_int32(env, refChain.current_node.line, &currentNodeLine);
+                napi_set_named_property(env, currentNodeObj, "line", currentNodeLine);
+            
+                // 设置被引用者
+                napi_set_named_property(env, chainObj, "to", currentNodeObj);
+            
+                // 将链对象添加到链数组
+                napi_set_element(env, chainArray, j, chainObj);
+            }
+            napi_set_element(env, iArray, q, chainArray);
+        }
+        // 将链数组添加到结果数组
+        napi_set_element(env, result, i, iArray);
+    }
+    
+    return result;
+}
+
+
+
+EXTERN_C_START
+static napi_value Init(napi_env env, napi_value exports) {
+    // 定义导出的方法
+    napi_property_descriptor desc[] = {
+        {"createTask", nullptr, CreateTask, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"destroyTask", nullptr, DestroyTask, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"getShortestPathToGCRoot", nullptr, GetShortestPathToGCRoot, nullptr, nullptr, nullptr, napi_default, nullptr}};
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;
 }
+EXTERN_C_END
 
-
-// 注册模块
-static napi_module heap_snapshot_module = {
+// 模块注册信息
+static napi_module leakModule = {
     .nm_version = 1,
     .nm_flags = 0,
     .nm_filename = nullptr,
     .nm_register_func = Init,
     .nm_modname = "leakcanary",
-    .nm_priv = ((void*)0),
-    .reserved = {0}
+    .nm_priv = nullptr,
+    .reserved = { 0 }
 };
 
 // 模块注册入口
-extern "C" __attribute__((constructor)) void RegisterHeapSnapshotModule(void) {
-    napi_module_register(&heap_snapshot_module);
+extern "C" __attribute__((constructor)) void RegisterModule(void) {
+    napi_module_register(&leakModule);
 }

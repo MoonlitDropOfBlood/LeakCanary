@@ -2,7 +2,7 @@
 
 ## 简介
 
-[![openHarmony](https://img.shields.io/badge/openharmony-v1.3.1-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v1.3.1)
+[![openHarmony](https://img.shields.io/badge/openharmony-v2.0.0-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v2.0.0)
 
 LeakCanary是一个为OpenHarmony开发的内存泄漏检测库，提供自动化的内存泄漏监控和检测功能。
 
@@ -10,6 +10,7 @@ LeakCanary是一个为OpenHarmony开发的内存泄漏检测库，提供自动�
 - 基于`WeakMap`和`FinalizationRegistry`实现高效的内存监控
 - 基于Navigation的页面，实时监控页面及其子组件的内存状态
 - 内存泄漏发送时会在Log中打印一条Tag为GC的error level log
+- 新增快照功能，在发生泄漏时，会自动生成快照文件并进行分析
 
 ## 下载安装
 

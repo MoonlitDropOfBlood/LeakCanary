@@ -24,9 +24,13 @@ find_library(
 # 获取所有源文件
 aux_source_directory(. SRC_LIST)
 
+# 排除napi_init.cpp，因为它是模块入口
+list(REMOVE_ITEM SRC_LIST "./napi_init.cpp")
+
 # 编译共享库
 add_library(${PROJECT_NAME} SHARED
-    ${SRC_LIST}
+       ${SRC_LIST}
+       napi_init.cpp
 )
 
 # 链接库文件

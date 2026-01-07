@@ -11,19 +11,29 @@ export enum EdgeType {
 
 // 引用链节点接口
 export interface ReferenceChainNode {
-  className: string;
-  edgeType: EdgeType;
-  propertyName: string;
+  nodeId: number;
+  name: string;
+  type: string;
+  path: string;
+  line: number;
 }
 
+// 引用链接口
+export interface ReferenceChain {
+  from: ReferenceChainNode;
+  edgeType: string;
+  to: ReferenceChainNode;
+}
 // 堆快照解析结果类型
-export type HeapSnapshotResult = {
+export interface  HeapSnapshotResult  {
   [className: string]: ReferenceChainNode[][];
 }
-// 解析堆快照并查找指定类的引用链
-export const parseHeapSnapshotAndFindChains: (
-  filePath: string,
-  classNames: string[]
-) => HeapSnapshotResult;
 
-export const parseHeapSnapshotAndFindChainsForObjects: (filePath: string, objects: object[]) => HeapSnapshotResult;
+// 创建内存快照分析任务
+export const createTask: (filePath: string) => number;
+
+// 销毁内存快照分析任务
+export const destroyTask: (taskId: number) => boolean;
+
+// 获取到GC根的最短引用链
+export const getShortestPathToGCRoot: (taskId: number, nodeName: string, maxPaths?: number) => HeapSnapshotResult[][][];

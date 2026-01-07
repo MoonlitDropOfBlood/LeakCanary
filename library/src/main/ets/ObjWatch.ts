@@ -1,6 +1,8 @@
 import { HashSet, LinkedList, util } from '@kit.ArkTS'
 import { hidebug, hilog } from '@kit.PerformanceAnalysisKit'
 import { LeakNotification } from './LeakNotification'
+import { systemDateTime } from '@kit.BasicServicesKit'
+import { common } from '@kit.AbilityKit'
 
 class ObjWatch {
   private cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
@@ -8,7 +10,7 @@ class ObjWatch {
 
   private targetGC:WeakRef<object>|undefined
 
-  private context:Context
+  private context:common.ApplicationContext
 
 
   registry(owner: object) {
@@ -42,8 +44,9 @@ class ObjWatch {
         if(noGC.length > 0) {
           hilog.error(0x0001,"GC","可能泄漏的组件为数为 " + noGC.length)
           LeakNotification.getInstance().publishNotification(noGC.length, firstLeak)
-          hidebug.dumpJsHeapData("heapData")
-          heldValue.analyzeHeapSnapshot(heldValue.context.filesDir+"/heapData.heapsnapshot",  Array.from(objects.values()))
+          const file = systemDateTime.getTime()+"-泄漏"
+          hidebug.dumpJsHeapData(file)
+          heldValue.analyzeHeapSnapshot(heldValue.context.filesDir+"/"+file+".heapsnapshot",  Array.from(noGC.values()))
         }
       });
       registry.register(gcSource, this)

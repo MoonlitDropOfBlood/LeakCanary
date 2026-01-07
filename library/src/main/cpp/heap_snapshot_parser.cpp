@@ -4,8 +4,9 @@
 #include <vector>
 #include <map>
 #include <sstream>
-#include <algorithm>
-#include <set>
+#include <queue>
+#include <regex>
+#include <memory>
 // 替换jsoncpp为rapidjson，使用SAX方式处理大文件
 #include "rapidjson/reader.h"
 #include "rapidjson/filereadstream.h"
@@ -13,259 +14,15 @@
 #include "rapidjson/error/en.h"
 #include "heap_snapshot_parser.h"
 
-// 前向声明结构体
-struct HeapNode;
-struct Edge;
-
-// 定义SAX解析处理器
-class HeapSnapshotHandler {
-private:
-    std::vector<std::string>& strings;
-    std::vector<HeapNode>& nodes;
-    std::vector<Edge>& edges;
-    std::map<int, int>& nodeIdToIndexMap;
-    
-    enum ParseState {
-        None,
-        InStrings,
-        InNodes,
-        InEdges
-    };
-    
-    ParseState currentState;
-    int arrayIndex;
-    int nodeFieldIndex;
-    int edgeFieldIndex;
-    // 将直接实例改为使用外部引用，避免不完整类型问题
-    HeapNode* currentNode;
-    Edge* currentEdge;
-    static const int NODE_FIELDS_COUNT = 6;
-    static const int EDGE_FIELDS_COUNT = 3;
-    
-public:
-    HeapSnapshotHandler(std::vector<std::string>& s, std::vector<HeapNode>& n, 
-                       std::vector<Edge>& e, std::map<int, int>& map) 
-        : strings(s), nodes(n), edges(e), nodeIdToIndexMap(map),
-          currentState(None), arrayIndex(0), nodeFieldIndex(0), edgeFieldIndex(0),
-          currentNode(nullptr), currentEdge(nullptr) {}
-    
-    bool Null() { 
-        if (currentState == InStrings && arrayIndex >= (int)strings.size()) {
-            strings.push_back("null");
-        }
-        arrayIndex++;
-        return true; 
-    }
-    
-    bool Bool(bool b) { 
-        arrayIndex++; 
-        return true; 
-    }
-    
-    bool Int(int i) {
-        switch (currentState) {
-        case InStrings:
-            if (arrayIndex >= (int)strings.size()) {
-                strings.push_back(std::to_string(i));
-            }
-            break;
-        case InNodes:
-            processNodeValue(i);
-            break;
-        case InEdges:
-            processEdgeValue(i);
-            break;
-        }
-        arrayIndex++;
-        return true;
-    }
-    
-    bool Uint(unsigned u) { 
-        Int(static_cast<int>(u)); 
-        return true; 
-    }
-    
-    bool Int64(int64_t i) { 
-        Int(static_cast<int>(i)); 
-        return true; 
-    }
-    
-    bool Uint64(uint64_t u) { 
-        Int(static_cast<int>(u)); 
-        return true; 
-    }
-    
-    bool Double(double d) { 
-        if (currentState == InStrings && arrayIndex >= (int)strings.size()) {
-            strings.push_back(std::to_string(d));
-        }
-        arrayIndex++; 
-        return true; 
-    }
-    
-    bool String(const char* str, rapidjson::SizeType length, bool copy) {
-        switch (currentState) {
-        case InStrings:
-            if (arrayIndex >= (int)strings.size()) {
-                strings.push_back(std::string(str, length));
-            }
-            break;
-        case InNodes:
-        case InEdges:
-            // 字符串不应该出现在nodes或edges数组中
-            break;
-        }
-        arrayIndex++;
-        return true;
-    }
-    
-    // 添加缺失的RawNumber方法
-    bool RawNumber(const char* str, rapidjson::SizeType length, bool copy) {
-        switch (currentState) {
-        case InStrings:
-            if (arrayIndex >= (int)strings.size()) {
-                strings.push_back(std::string(str, length));
-            }
-            break;
-        case InNodes:
-            // 尝试将原始数字字符串转换为整数
-            if (length > 0) {
-                std::string numStr(str, length);
-                try {
-                    int value = std::stoi(numStr);
-                    processNodeValue(value);
-                } catch (...) {
-                    // 如果转换失败，当作0处理
-                    processNodeValue(0);
-                }
-            } else {
-                processNodeValue(0);
-            }
-            break;
-        case InEdges:
-            // 尝试将原始数字字符串转换为整数
-            if (length > 0) {
-                std::string numStr(str, length);
-                try {
-                    int value = std::stoi(numStr);
-                    processEdgeValue(value);
-                } catch (...) {
-                    // 如果转换失败，当作0处理
-                    processEdgeValue(0);
-                }
-            } else {
-                processEdgeValue(0);
-            }
-            break;
-        }
-        arrayIndex++;
-        return true;
-    }
-    
-    bool StartObject() { return true; }
-    
-    bool Key(const char* str, rapidjson::SizeType length, bool copy) {
-        std::string key(str, length);
-        if (key == "strings") {
-            currentState = InStrings;
-            arrayIndex = 0;
-        } else if (key == "nodes") {
-            currentState = InNodes;
-            arrayIndex = 0;
-            nodeFieldIndex = 0;
-        } else if (key == "edges") {
-            currentState = InEdges;
-            arrayIndex = 0;
-            edgeFieldIndex = 0;
-        }
-        return true;
-    }
-    
-    bool EndObject(rapidjson::SizeType memberCount) { 
-        currentState = None;
-        return true; 
-    }
-    
-    bool StartArray() { 
-        arrayIndex = 0;
-        return true; 
-    }
-    
-    bool EndArray(rapidjson::SizeType elementCount) { 
-        if (currentState == InStrings) {
-            strings.resize(elementCount);
-        }
-        currentState = None;
-        return true; 
-    }
-
-private:
-    void processNodeValue(int value) {
-        // 由于不能在类中直接实例化不完整类型，我们需要改变处理方式
-        // 直接在nodes向量中操作，而不是使用currentNode成员
-        
-        size_t nodeIndex = nodes.size() - 1;
-        if (nodeFieldIndex % NODE_FIELDS_COUNT == 0) {
-            // 开始一个新的节点
-            HeapNode newNode = {0, "", 0, 0, 0, 0};
-            nodes.push_back(newNode);
-            nodeIndex = nodes.size() - 1;
-        } else {
-            nodeIndex = nodes.size() - 1;
-        }
-        
-        switch (nodeFieldIndex % NODE_FIELDS_COUNT) {
-        case 0: // type
-            nodes[nodeIndex].type = value;
-            break;
-        case 1: // name
-            // name是字符串索引，暂时存储原始值
-            nodes[nodeIndex].name = std::to_string(value);
-            break;
-        case 2: // id
-            nodes[nodeIndex].id = value;
-            nodeIdToIndexMap[value] = static_cast<int>(nodeIndex);
-            break;
-        case 3: // size
-            nodes[nodeIndex].size = value;
-            break;
-        case 4: // nativeObject
-            nodes[nodeIndex].nativeObject = value;
-            break;
-        case 5: // detachedness
-            nodes[nodeIndex].detachedness = value;
-            break;
-        }
-        nodeFieldIndex++;
-    }
-    
-    void processEdgeValue(int value) {
-        // 直接在edges向量中操作，而不是使用currentEdge成员
-        
-        size_t edgeIndex = edges.size() - 1;
-        if (edgeFieldIndex % EDGE_FIELDS_COUNT == 0) {
-            // 开始一条新边
-            Edge newEdge = {"", 0, 0};
-            edges.push_back(newEdge);
-            edgeIndex = edges.size() - 1;
-        } else {
-            edgeIndex = edges.size() - 1;
-        }
-        
-        switch (edgeFieldIndex % EDGE_FIELDS_COUNT) {
-        case 0: // type
-            edges[edgeIndex].type = std::to_string(value);
-            break;
-        case 1: // name_or_index
-            edges[edgeIndex].name_or_index = value;
-            break;
-        case 2: // to_node
-            edges[edgeIndex].to_node = value;
-            break;
-        }
-        edgeFieldIndex++;
-    }
-};
+// 定义GC根类型的检查
+bool isGCRoot(const std::string& nodeType, const std::string& nodeName) {
+    return nodeType == "synthetic" ||
+           nodeType == "hidden" ||
+           nodeName == "(GC root)" ||
+           nodeName == "(root)" ||
+           nodeName == "(global)" ||
+           nodeName.find("(V8 internal)") == 0;
+}
 
 // 边类型映射函数
 std::string mapEdgeType(int typeCode) {
@@ -281,11 +38,277 @@ std::string mapEdgeType(int typeCode) {
     }
 }
 
-bool HeapSnapshotParser::parseSnapshot(const std::string& filename) {
+// 节点类型映射函数 ["hidden","array","string","object","code","closure","regexp","number","native","synthetic","concatenated string","slicedstring","symbol","bigint","framework"]
+std::string mapNodeType(int typeCode) {
+    switch (typeCode) {
+        case 0: return "hidden";
+        case 1: return "array";
+        case 2: return "string";
+        case 3: return "object";
+        case 4: return "code";
+        case 5: return "closure";
+        case 6: return "regexp";
+        case 7: return "number";
+        case 8: return "native";
+        case 9: return "synthetic";
+        case 10: return "concatenated string";
+        case 11: return "slicedstring";
+        case 12: return "symbol";
+        case 13: return "bigint";
+        case 14: return "framework";
+        default: return "unknown";
+    }
+}
+
+// 解析节点名称和路径信息
+void TaskHeapSnapshot::parseNodeNameAndPath(HeapNode& node, const std::string& originalName) {
+    if (originalName.find("#") != std::string::npos && originalName[0] != '#' && originalName[0] != '=') {
+        size_t hashPos = originalName.find("#");
+        node.path = originalName.substr(0, hashPos);
+        
+        std::string namePart = originalName.substr(hashPos + 1);
+        std::regex nameRegex(R"((.*)\(line:(.*)\)(.*))");
+        std::smatch match;
+        
+        if (std::regex_search(namePart, match, nameRegex)) {
+            node.name = match[1];
+            try {
+                node.line = std::stoi(match[2]);
+            } catch (...) {
+                node.line = 0;
+            }
+            node.module = match[3];
+        } else {
+            node.name = namePart;
+        }
+    } else {
+        node.name = originalName;
+    }
+}
+
+// 获取字符串
+std::string TaskHeapSnapshot::getStringById(int id) const {
+    if (id >= 0 && id < static_cast<int>(strings.size())) {
+        return strings[id];
+    }
+    return "";
+}
+
+// SAX解析处理器
+class TaskHeapSnapshotHandler {
+private:
+    std::vector<std::string>& strings;
+    std::vector<int>& nodesRaw;
+    std::vector<int>& edgesRaw;
+    TaskHeapSnapshot::Meta& meta;
+    
+    enum ParseState {
+        None,
+        InStrings,
+        InNodes,
+        InEdges,
+        InMeta,
+        InNodeFields,
+        InNodeTypes,
+        InEdgeFields,
+        InEdgeTypes
+    };
+    
+    ParseState currentState;
+    int arrayIndex;
+    
+public:
+    TaskHeapSnapshotHandler(std::vector<std::string>& s, std::vector<int>& nodesR, 
+                          std::vector<int>& edgesR, TaskHeapSnapshot::Meta& m)
+        : strings(s), nodesRaw(nodesR), edgesRaw(edgesR), meta(m),
+          currentState(None), arrayIndex(0) {}
+    
+    // 获取字符串的辅助函数
+    std::string getStringById(int id) const {
+        if (id >= 0 && id < static_cast<int>(strings.size())) {
+            return strings[id];
+        }
+        return "";
+    }
+    
+    bool Null() { 
+        if (currentState == InStrings && arrayIndex >= (int)strings.size()) {
+            strings.push_back("null");
+        }
+        arrayIndex++;
+        return true; 
+    }
+    
+    bool Bool(bool b) { 
+        arrayIndex++;
+        return true; 
+    }
+    
+    bool Int(int i) {
+        switch (currentState) {
+        case InStrings:
+            if (arrayIndex >= (int)strings.size()) {
+                strings.push_back(std::to_string(i));
+            }
+            break;
+        case InNodes:
+            nodesRaw.push_back(i);
+            break;
+        case InEdges:
+            edgesRaw.push_back(i);
+            break;
+        case InNodeTypes:
+            if (arrayIndex % 2 == 0) {
+                // 类型名称
+                meta.node_types.emplace_back();
+                meta.node_types.back().push_back(getStringById(i));
+            } else {
+                // 类型值
+                meta.node_types.back().push_back(std::to_string(i));
+            }
+            break;
+        case InEdgeTypes:
+            if (arrayIndex % 2 == 0) {
+                // 类型名称
+                meta.edge_types.emplace_back();
+                meta.edge_types.back().push_back(getStringById(i));
+            } else {
+                // 类型值
+                meta.edge_types.back().push_back(std::to_string(i));
+            }
+            break;
+        }
+        arrayIndex++;
+        return true;
+    }
+    
+    bool Uint(unsigned u) { 
+        Int(static_cast<int>(u)); 
+        return true; 
+    }
+    
+    bool Int64(int64_t i) { 
+        Int(static_cast<int>(i)); 
+        return true; 
+    } 
+    
+    bool Uint64(uint64_t u) { 
+        Int(static_cast<int>(u)); 
+        return true; 
+    }
+    
+    bool Double(double d) { 
+        arrayIndex++;
+        return true; 
+    }
+    
+    bool String(const char* str, rapidjson::SizeType length, bool copy) {
+        switch (currentState) {
+        case InStrings:
+            if (arrayIndex >= (int)strings.size()) {
+                strings.push_back(std::string(str, length));
+            }
+            break;
+        case InNodeFields:
+            meta.node_fields.push_back(std::string(str, length));
+            break;
+        case InEdgeFields:
+            meta.edge_fields.push_back(std::string(str, length));
+            break;
+        }
+        arrayIndex++;
+        return true;
+    }
+    
+    bool RawNumber(const char* str, rapidjson::SizeType length, bool copy) {
+        if (length == 0) {
+            arrayIndex++;
+            return true;
+        }
+        
+        std::string numStr(str, length);
+        try {
+            int value = std::stoi(numStr);
+            switch (currentState) {
+            case InNodes:
+                nodesRaw.push_back(value);
+                break;
+            case InEdges:
+                edgesRaw.push_back(value);
+                break;
+            }
+        } catch (...) {
+            // 忽略无法转换的数值
+        }
+        arrayIndex++;
+        return true;
+    }
+    
+    bool StartObject() { 
+        if (currentState == None) {
+            currentState = InMeta;
+        }
+        return true; 
+    }
+    
+    bool Key(const char* str, rapidjson::SizeType length, bool copy) {
+        std::string key(str, length);
+        if (key == "strings") {
+            currentState = InStrings;
+            arrayIndex = 0;
+        } else if (key == "nodes") {
+            currentState = InNodes;
+            arrayIndex = 0;
+        } else if (key == "edges") {
+            currentState = InEdges;
+            arrayIndex = 0;
+        } else if (key == "node_fields") {
+            currentState = InNodeFields;
+            arrayIndex = 0;
+        } else if (key == "node_types") {
+            currentState = InNodeTypes;
+            arrayIndex = 0;
+        } else if (key == "edge_fields") {
+            currentState = InEdgeFields;
+            arrayIndex = 0;
+        } else if (key == "edge_types") {
+            currentState = InEdgeTypes;
+            arrayIndex = 0;
+        } else if (key == "node_count") {
+            currentState = None;
+        } else if (key == "edge_count") {
+            currentState = None;
+        }
+        return true;
+    }
+    
+    bool EndObject(rapidjson::SizeType memberCount) { 
+        if (currentState == InMeta) {
+            currentState = None;
+        }
+        return true; 
+    }
+    
+    bool StartArray() { 
+        arrayIndex = 0;
+        return true; 
+    }
+    
+    bool EndArray(rapidjson::SizeType elementCount) { 
+        if (currentState == InStrings) {
+            strings.resize(elementCount);
+        }
+        currentState = None;
+        return true; 
+    }
+};
+
+// 解析快照文件
+bool TaskHeapSnapshot::parseSnapshot() {
     // 使用文件流以更好地处理大文件
-    FILE* fp = fopen(filename.c_str(), "rb");
+    FILE* fp = fopen(path.c_str(), "rb");
     if (!fp) {
-        std::cerr << "无法打开文件: " << filename << std::endl;
+        std::cerr << "无法打开文件: " << path << std::endl;
         return false;
     }
     
@@ -295,7 +318,7 @@ bool HeapSnapshotParser::parseSnapshot(const std::string& filename) {
     
     // 创建SAX解析器
     rapidjson::Reader reader;
-    HeapSnapshotHandler handler(strings, nodes, edges, nodeIdToIndexMap);
+    TaskHeapSnapshotHandler handler(strings, nodesRaw, edgesRaw, meta);
     
     // 解析JSON
     rapidjson::ParseResult result = reader.Parse(is, handler);
@@ -308,159 +331,251 @@ bool HeapSnapshotParser::parseSnapshot(const std::string& filename) {
         return false;
     }
     
-    // 解析完成后，处理字符串引用
-    resolveStringReferences();
+    // 解析完成后，处理元数据和节点边数据
+    parseMetaAndData();
+    
+    // 构建引用关系
+    buildReferences();
     
     return true;
 }
 
-void HeapSnapshotParser::resolveStringReferences() {
-    // 将节点名称从索引转换为实际字符串
-    for (std::vector<HeapNode>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
-        int nameIndex = 0;
-        try {
-            nameIndex = std::stoi(it->name);
-        } catch (const std::exception& e) {
-            // 如果转换失败，使用默认值0
-            nameIndex = 0;
+// 解析元数据和节点边数据
+void TaskHeapSnapshot::parseMetaAndData() {
+    // 解析节点数据
+    int nodeFieldsCount = meta.node_fields.size();
+    for (int i = 0; i < nodesRaw.size(); i += nodeFieldsCount) {
+        HeapNode node;
+        
+        for (int j = 0; j < nodeFieldsCount; j++) {
+            const std::string& field = meta.node_fields[j];
+            int value = nodesRaw[i + j];
+            
+            if (field == "type") {
+                node.type = mapNodeType(value);
+            } else if (field == "name") {
+                std::string originalName = getStringById(value);
+                parseNodeNameAndPath(node, originalName);
+            } else if (field == "id") {
+                node.id = value;
+                nodeIdToIndexMap[value] = static_cast<int>(nodes.size());
+            } else if (field == "edge_count") {
+                node.edge_count = value;
+            }
         }
-        it->name = getStringById(nameIndex);
+        
+        nodes.push_back(node);
     }
     
-    // 将边类型从索引转换为实际字符串
-    for (std::vector<Edge>::iterator it = edges.begin(); it != edges.end(); ++it) {
-        int typeIndex = 0;
-        try {
-            typeIndex = std::stoi(it->type);
-        } catch (const std::exception& e) {
-            // 如果转换失败，使用默认值0
-            typeIndex = 0;
+    // 解析边数据
+    int edgeFieldsCount = meta.edge_fields.size();
+    for (int i = 0; i < edgesRaw.size(); i += edgeFieldsCount) {
+        std::string type;
+        std::string name_or_index;
+        int to_node = 0;
+        
+        for (int j = 0; j < edgeFieldsCount; j++) {
+            const std::string& field = meta.edge_fields[j];
+            int value = edgesRaw[i + j];
+            
+            if (field == "type") {
+                type = mapEdgeType(value);
+            } else if (field == "name_or_index") {
+                // 检查是否为字符串索引
+                if (type != "element") {
+                    if (value < static_cast<int>(strings.size())) {
+                        name_or_index = strings[value];
+                    } else {
+                        name_or_index = std::to_string(value);
+                    }
+                } else {
+                    name_or_index = std::to_string(value);
+                }
+            } else if (field == "to_node") {
+                // 转换为节点索引
+                to_node = value / nodeFieldsCount;
+            }
         }
-        it->type = mapEdgeType(typeIndex);
+        
+        edges.emplace_back(type, name_or_index, to_node);
     }
 }
 
-std::string HeapSnapshotParser::getStringById(int id) {
-    if (id >= 0 && id < static_cast<int>(strings.size())) {
-        return strings[id];
-    }
-    return "";
-}
-
-std::string HeapSnapshotParser::getEdgeTypeString(int typeCode) {
-    switch (typeCode) {
-        case 0: return "context";
-        case 1: return "element";
-        case 2: return "property";
-        case 3: return "internal";
-        case 4: return "hidden";
-        case 5: return "shortcut";
-        case 6: return "weak";
-        default: return "unknown";
-    }
-}
-
-std::vector<int> HeapSnapshotParser::findNodesByClassName(const std::string& className) {
-    std::vector<int> nodeIndices;
+// 构建引用关系
+void TaskHeapSnapshot::buildReferences() {
+    int edgeIndex = 0;
     for (size_t i = 0; i < nodes.size(); i++) {
-        if (nodes[i].name == className) {
-            nodeIndices.push_back(static_cast<int>(i));
-        }
-    }
-    return nodeIndices;
-}
-
-std::vector<std::vector<ReferenceChainNode>> HeapSnapshotParser::findAllPathsToNode(int targetNodeIndex) {
-    std::vector<std::vector<ReferenceChainNode>> allPaths;
-    
-    // 查找指向目标节点的所有边
-    for (size_t i = 0; i < edges.size(); i++) {
-        // 检查边是否指向目标节点
-        if (edges[i].to_node == targetNodeIndex * 6) { // 节点索引转换为数组索引
-            // 找到边的来源节点
-            // 在实际实现中，我们需要遍历所有节点来找到对应的源节点
-            // 这里简化处理，直接构造引用链
+        HeapNode& node = nodes[i];
+        int edgeCount = node.edge_count;
+        
+        for (int j = 0; j < edgeCount; j++) {
+            if (edgeIndex + j >= edges.size()) break;
             
-            std::vector<ReferenceChainNode> path;
+            const Edge& edge = edges[edgeIndex + j];
+            int toNodeIndex = edge.to_node_index;
             
-            // 添加中间引用节点
-            ReferenceChainNode intermediateNode;
-            intermediateNode.className = "IntermediateObject";
-            
-            // 安全地将边类型从字符串转换为整数
-            int typeIndex = 0;
-            try {
-                typeIndex = std::stoi(edges[i].type);
-            } catch (const std::exception& e) {
-                // 如果转换失败，使用默认值0
-                typeIndex = 0;
+            if (toNodeIndex >= 0 && toNodeIndex < static_cast<int>(nodes.size())) {
+                HeapNode& toNode = nodes[toNodeIndex];
+                toNode.references.emplace_back(static_cast<int>(i), edge.type, edge.name_or_index);
             }
-            intermediateNode.edgeType = mapEdgeType(typeIndex);
+        }
+        
+        edgeIndex += edgeCount;
+    }
+}
+
+// 使用BFS算法查找从目标节点到GC根的最短引用链
+std::vector<std::vector<ReferenceChain>> TaskHeapSnapshot::getShortestPathToGCRoot(int nodeId, int maxPaths) {
+    std::vector<std::vector<ReferenceChain>> resultChains;
+    
+    // 查找目标节点
+    auto it = nodeIdToIndexMap.find(nodeId);
+    if (it == nodeIdToIndexMap.end()) {
+        std::cerr << "未找到ID为 " << nodeId << " 的节点" << std::endl;
+        return resultChains;
+    }
+    
+    int targetNodeIndex = it->second;
+    const HeapNode& targetNode = nodes[targetNodeIndex];
+    
+    // 如果目标节点本身就是GC根，返回空链
+    if (isGCRoot(targetNode.type, targetNode.name)) {
+        return resultChains;
+    }
+    
+    // BFS队列：(当前节点索引, 路径)
+    std::queue<std::pair<int, std::vector<ReferenceChain>>> queue;
+    
+    // 访问标记
+    std::vector<bool> visited(nodes.size(), false);
+    
+    // 初始化队列
+    queue.push({targetNodeIndex, {}});
+    visited[targetNodeIndex] = true;
+    
+    // 最短路径长度，用于提前终止
+    int shortestPathLength = -1;
+    
+    while (!queue.empty() && resultChains.size() < maxPaths) {
+        auto [currentNodeIndex, currentPath] = queue.front();
+        queue.pop();
+        
+        const HeapNode& currentNode = nodes[currentNodeIndex];
+        
+        // 检查当前节点是否是GC根
+        if (isGCRoot(currentNode.type, currentNode.name)) {
+            // 如果当前路径长度大于1（不是直接引用），则添加到结果
+            if (currentPath.size() > 0) {
+                resultChains.push_back(currentPath);
+                if (shortestPathLength == -1) {
+                    shortestPathLength = currentPath.size();
+                }
+            }
+            continue;
+        }
+        
+        // 如果已经找到足够的路径且当前路径长度超过最短路径，提前终止
+        if (shortestPathLength != -1 && currentPath.size() > shortestPathLength) {
+            continue;
+        }
+        
+        // 遍历当前节点的所有引用者
+        for (const Reference& ref : currentNode.references) {
+            int referrerIndex = ref.from_node_index;
             
-            // 获取属性名
-            if (edges[i].name_or_index < static_cast<int>(strings.size())) {
-                intermediateNode.propertyName = strings[edges[i].name_or_index];
-            } else {
-                intermediateNode.propertyName = "index_" + std::to_string(edges[i].name_or_index);
+            // 跳过已访问的节点
+            if (visited[referrerIndex]) {
+                continue;
             }
             
-            path.push_back(intermediateNode);
+            const HeapNode& referrer = nodes[referrerIndex];
             
-            // 添加目标节点
-            ReferenceChainNode targetNode;
-            targetNode.className = nodes[targetNodeIndex].name;
-            targetNode.edgeType = "target";
-            targetNode.propertyName = "instance";
-            targetNode.nodeId = nodes[targetNodeIndex].id;
+            // 跳过直接的GC根引用
+            if (isGCRoot(referrer.type, referrer.name) && currentPath.empty()) {
+                continue;
+            }
             
-            path.push_back(targetNode);
+            // 创建新的引用链节点
+            ReferenceChainNode referrerNode(referrer.id, referrer.name, referrer.type, 
+                                           referrer.path, referrer.line);
             
-            allPaths.push_back(path);
+            ReferenceChainNode currentNodeRef(currentNode.id, currentNode.name, currentNode.type, 
+                                             currentNode.path, currentNode.line);
+            
+            // 创建新的引用链
+            ReferenceChain newChain(referrerNode, ref.type, currentNodeRef);
+            
+            // 创建新的路径
+            std::vector<ReferenceChain> newPath = currentPath;
+            newPath.push_back(newChain);
+            
+            // 添加到队列
+            queue.push({referrerIndex, newPath});
+            visited[referrerIndex] = true;
         }
     }
     
-    return allPaths;
+    return resultChains;
 }
 
-std::vector<std::vector<ReferenceChainNode>> HeapSnapshotParser::findReferenceChains(const std::string& className) {
-    std::vector<int> targetNodes = findNodesByClassName(className);
-    std::vector<std::vector<ReferenceChainNode>> allChains;
+std::vector<std::vector<std::vector<ReferenceChain>>> TaskHeapSnapshot::getShortestPathToGCRootByName(const std::string& nodeName, int maxPaths) {
+    std::vector<std::vector<std::vector<ReferenceChain>>> resultChains;
     
-    for (size_t idx = 0; idx < targetNodes.size(); idx++) {
-        int nodeIndex = targetNodes[idx];
-        std::vector<std::vector<ReferenceChainNode>> chains = findAllPathsToNode(nodeIndex);
-        allChains.insert(allChains.end(), chains.begin(), chains.end());
-    }
-    
-    return allChains;
-}
-
-std::vector<std::vector<ReferenceChainNode>> HeapSnapshotParser::findReferenceChainsForNodeIds(const std::vector<int>& nodeIds) {
-    std::vector<std::vector<ReferenceChainNode>> allChains;
-    
-    for (size_t i = 0; i < nodeIds.size(); i++) {
-        int nodeId = nodeIds[i];
-        // 通过nodeId查找nodeIndex
-        std::map<int, int>::iterator it = nodeIdToIndexMap.find(nodeId);
-        if (it != nodeIdToIndexMap.end()) {
-            int nodeIndex = it->second;
-            std::vector<std::vector<ReferenceChainNode>> chains = findAllPathsToNode(nodeIndex);
-            allChains.insert(allChains.end(), chains.begin(), chains.end());
+    // 查找所有名称匹配的节点
+    std::vector<int> matchedNodeIds;
+    for (const auto& node : nodes) {
+        if (node.name.find(nodeName) != std::string::npos && node.type == "object") {
+            matchedNodeIds.push_back(node.id);
         }
     }
     
-    return allChains;
-}
-
-std::map<std::string, std::vector<std::vector<ReferenceChainNode>>> HeapSnapshotParser::findReferenceChainsForMultipleClasses(
-    const std::vector<std::string>& classNames) {
-    std::map<std::string, std::vector<std::vector<ReferenceChainNode>>> resultMap;
-    
-    for (size_t i = 0; i < classNames.size(); i++) {
-        const std::string& className = classNames[i];
-        std::vector<std::vector<ReferenceChainNode>> chains = findReferenceChains(className);
-        resultMap[className] = chains;
+    if (matchedNodeIds.empty()) {
+        std::cerr << "未找到名称包含 \"" << nodeName << "\" 的节点" << std::endl;
+        return resultChains;
     }
     
-    return resultMap;
+    // 对每个匹配的节点，获取其到GC根的最短路径
+    for (int nodeId : matchedNodeIds) {
+        std::vector<std::vector<ReferenceChain>> chains = getShortestPathToGCRoot(nodeId, maxPaths);
+        resultChains.push_back(chains);
+    }
+    
+    return resultChains;
+}
+
+// 初始化TaskManager静态成员
+std::map<int, std::unique_ptr<TaskHeapSnapshot>> TaskManager::tasks;
+int TaskManager::nextTaskId = 1;
+
+// 创建新任务
+int TaskManager::createTask(const std::string& path) {
+    int taskId = nextTaskId++;
+    auto task = std::make_unique<TaskHeapSnapshot>(taskId, path);
+    
+    // 解析快照文件
+    if (task->parseSnapshot()) {
+        tasks[taskId] = std::move(task);
+        return taskId;
+    } else {
+        return -1; // 创建失败
+    }
+}
+
+// 获取任务
+TaskHeapSnapshot* TaskManager::getTask(int id) {
+    auto it = tasks.find(id);
+    if (it != tasks.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+
+// 销毁任务
+bool TaskManager::destroyTask(int id) {
+    auto it = tasks.find(id);
+    if (it != tasks.end()) {
+        tasks.erase(it);
+        return true;
+    }
+    return false;
 }
