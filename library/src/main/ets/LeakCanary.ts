@@ -4,6 +4,8 @@ import { objWatch } from "./ObjWatch"
 import { deviceInfo } from "@kit.BasicServicesKit"
 import hilog from "@ohos.hilog"
 import { LeakNotification } from "./LeakNotification"
+import { appDatabase } from "./db/AppDatabase"
+import { Context } from "@kit.AbilityKit"
 
 export class LeakCanary {
 
@@ -14,7 +16,7 @@ export class LeakCanary {
    * 全新的监听方式
    * @since 20
    */
-  static initRegisterGlobalWatch(){
+  static initRegisterGlobalWatch(context: Context){
     if(deviceInfo.sdkApiVersion < 20){
       hilog.warn(0x0001, "LeakCanary", "initRegisterGlobalWatch only support sdkApiVersion >= 20")
       return
@@ -23,6 +25,7 @@ export class LeakCanary {
       hilog.warn(0x0001, "LeakCanary", "initRegisterGlobalWatch already init")
       return
     }
+    appDatabase.init(context)
     try {
       let openHarmonyInternalApi = getOpenHarmonyInternalApi()
       openHarmonyInternalApi((owner:WeakRef<object>,msg:string)=>{
@@ -45,7 +48,9 @@ export class LeakCanary {
    */
   static registerRootWatch(rootComponent: object) {
     LeakCanary.registerComponent(rootComponent)
-    rootComponent['getUIContext']().getUIObserver().on("navDestinationUpdate", (navInfo) => {
+    const uiContext:UIContext = rootComponent['getUIContext']()
+    appDatabase.init(uiContext.getHostContext()!!)
+    uiContext.getUIObserver().on("navDestinationUpdate", (navInfo) => {
       if (navInfo.state == uiObserver.NavDestinationState.ON_WILL_DISAPPEAR && navInfo.uniqueId) {
         let map: Map<number, WeakRef<object>> = rootComponent["childrenWeakrefMap_"]
         map.forEach((value, key) => {

@@ -14,6 +14,7 @@
   "repository": "https://gitee.com/Duke_Bit/leak-canary",
   "homepage": "https://gitee.com/Duke_Bit",
   "dependencies": {
-    "libleakcanary.so": "file:./src/main/cpp/types/libleakcanary"
+    "libleakcanary.so": "file:./src/main/cpp/types/libleakcanary",
+    "@zxhhyj/storm": "^3.0.9"
   }
 }

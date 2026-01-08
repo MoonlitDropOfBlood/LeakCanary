@@ -43,16 +43,14 @@ class ObjWatch {
         })
         if(noGC.length > 0) {
           hilog.error(0x0001,"GC","可能泄漏的组件为数为 " + noGC.length)
-          LeakNotification.getInstance().publishNotification(noGC.length, firstLeak)
-          const file = systemDateTime.getTime()+"-泄漏"
-          hidebug.dumpJsHeapData(file)
-          heldValue.analyzeHeapSnapshot(heldValue.context.filesDir+"/"+file+".heapsnapshot",  Array.from(noGC.values()))
+          LeakNotification.getInstance().publishNotification(`检测到${firstLeak}等${noGC.length}个组件泄漏`)
+          heldValue.analyzeHeapSnapshot(Array.from(noGC.values()))
         }
       });
       registry.register(gcSource, this)
     }
   }
-  analyzeHeapSnapshot:(file:string,objects:object[])=>void
+  analyzeHeapSnapshot:(objects:object[])=>void
 }
 
 export const objWatch = new ObjWatch()

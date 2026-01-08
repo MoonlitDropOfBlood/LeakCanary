@@ -33,13 +33,13 @@ export class LeakNotification {
     })
   }
 
-  publishNotification(size:number,firstName: string) {
+  publishNotification(text: string) {
     notificationManager.publish({
       content:{
         notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
         normal:{
           title:"LeakCanary",
-          text:`检测到${firstName}等${size}个组件泄漏`
+          text:text
         }
       },
       label:"LeakCanary",
