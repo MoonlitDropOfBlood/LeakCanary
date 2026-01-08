@@ -113,9 +113,9 @@ static napi_value GetShortestPathToGCRoot(napi_env env, napi_callback_info info)
     delete[] nodeNameBuffer;
     
     // 解析最大路径数参数
-    int32_t maxPaths = 5; // 默认最大路径数
+    int32_t maxDepth = 5; // 默认最大路径数
     if (argc >= 3) {
-        if (napi_get_value_int32(env, args[2], &maxPaths) != napi_ok) {
+        if (napi_get_value_int32(env, args[2], &maxDepth) != napi_ok) {
             return nullptr;
         }
     }
@@ -128,102 +128,93 @@ static napi_value GetShortestPathToGCRoot(napi_env env, napi_callback_info info)
     }
     
     // 查找最短引用链
-    std::vector<std::vector<std::vector<ReferenceChain>>> resultChains = task->getShortestPathToGCRootByName(nodeName, maxPaths);
+    std::vector<std::vector<ReferenceChain>> resultChains = task->getShortestPathToGCRootByName(nodeName, maxDepth);
     
     // 将结果转换为NAPI数组
     napi_value result;
     napi_create_array_with_length(env, resultChains.size(), &result);
     
     for (size_t i = 0; i < resultChains.size(); i++) {
-        napi_value iArray;
-        napi_create_array_with_length(env, resultChains[i].size(), &iArray);
-        for (size_t q = 0; q < resultChains[i].size(); q++) {
-            const std::vector<ReferenceChain>& chain = resultChains[i][q];
+        napi_value chainArray;
+        napi_create_array_with_length(env, resultChains[i].size(), &chainArray);
         
-            // 创建链数组
-            napi_value chainArray;
-            napi_create_array_with_length(env, chain.size(), &chainArray);
-        
-            for (size_t j = 0; j < chain.size(); j++) {
-                const ReferenceChain& refChain = chain[j];
+        for (size_t j = 0; j < resultChains[i].size(); j++) {
+            const ReferenceChain& refChain = resultChains[i][j];
             
                 // 创建链对象
-                napi_value chainObj;
-                napi_create_object(env, &chainObj);
+            napi_value chainObj;
+            napi_create_object(env, &chainObj);
             
                 // 设置引用者信息
-                napi_value referrerObj;
-                napi_create_object(env, &referrerObj);
+            napi_value referrerObj;
+            napi_create_object(env, &referrerObj);
+            
+            napi_value referrerNodeId;
+            napi_create_int32(env, refChain.referrer.id, &referrerNodeId);
+            napi_set_named_property(env, referrerObj, "nodeId", referrerNodeId);
+            
+            napi_value referrerName;
+            napi_create_string_utf8(env, refChain.referrer.name.c_str(), refChain.referrer.name.length(), &referrerName);
+            napi_set_named_property(env, referrerObj, "name", referrerName);
+            
+            napi_value referrerType;
+            napi_create_string_utf8(env, refChain.referrer.type.c_str(), refChain.referrer.type.length(), &referrerType);
+            napi_set_named_property(env, referrerObj, "type", referrerType);
+            
+            // 处理path字段，可能为空字符串
+            napi_value referrerPath;
+            napi_create_string_utf8(env, refChain.referrer.path.c_str(), refChain.referrer.path.length(), &referrerPath);
+            napi_set_named_property(env, referrerObj, "path", referrerPath);
+            
+            // 处理line字段，可能为0
+            napi_value referrerLine;
+            napi_create_int32(env, refChain.referrer.line, &referrerLine);
+            napi_set_named_property(env, referrerObj, "line", referrerLine);
+            
+            // 设置引用者
+            napi_set_named_property(env, chainObj, "from", referrerObj);
+            
+            // 设置edgeType
+            napi_value edgeTypeVal;
+            napi_create_string_utf8(env, refChain.edge_type.c_str(), refChain.edge_type.length(), &edgeTypeVal);
+            napi_set_named_property(env, chainObj, "edgeType", edgeTypeVal);
+            
+            // 设置被引用者信息
+            napi_value currentNodeObj;
+            napi_create_object(env, &currentNodeObj);
                 
-                napi_value referrerNodeId;
-                napi_create_int32(env, refChain.referrer.id, &referrerNodeId);
-                napi_set_named_property(env, referrerObj, "nodeId", referrerNodeId);
-            
-                napi_value referrerName;
-                napi_create_string_utf8(env, refChain.referrer.name.c_str(), refChain.referrer.name.length(), &referrerName);
-                napi_set_named_property(env, referrerObj, "name", referrerName);
-            
-                napi_value referrerType;
-                napi_create_string_utf8(env, refChain.referrer.type.c_str(), refChain.referrer.type.length(), &referrerType);
-                napi_set_named_property(env, referrerObj, "type", referrerType);
-            
-                // 处理path字段，可能为空字符串
-                napi_value referrerPath;
-                napi_create_string_utf8(env, refChain.referrer.path.c_str(), refChain.referrer.path.length(), &referrerPath);
-                napi_set_named_property(env, referrerObj, "path", referrerPath);
-            
-                // 处理line字段，可能为0
-                napi_value referrerLine;
-                napi_create_int32(env, refChain.referrer.line, &referrerLine);
-                napi_set_named_property(env, referrerObj, "line", referrerLine);
-            
-                // 设置引用者
-                napi_set_named_property(env, chainObj, "from", referrerObj);
-            
-                // 设置edgeType
-                napi_value edgeTypeVal;
-                napi_create_string_utf8(env, refChain.edge_type.c_str(), refChain.edge_type.length(), &edgeTypeVal);
-                napi_set_named_property(env, chainObj, "edgeType", edgeTypeVal);
-            
-                // 设置被引用者信息
-                napi_value currentNodeObj;
-                napi_create_object(env, &currentNodeObj);
+            // 设置nodeId
+            napi_value currentNodeId;
+            napi_create_int32(env, refChain.current_node.id, &currentNodeId);
+            napi_set_named_property(env, currentNodeObj, "nodeId", currentNodeId);
                 
-                // 设置nodeId
-                napi_value currentNodeId;
-                napi_create_int32(env, refChain.current_node.id, &currentNodeId);
-                napi_set_named_property(env, currentNodeObj, "nodeId", currentNodeId);
+            // 设置name
+            napi_value currentNodeName;
+            napi_create_string_utf8(env, refChain.current_node.name.c_str(), refChain.current_node.name.length(), &currentNodeName);
+            napi_set_named_property(env, currentNodeObj, "name", currentNodeName);
                 
-                // 设置name
-                napi_value currentNodeName;
-                napi_create_string_utf8(env, refChain.current_node.name.c_str(), refChain.current_node.name.length(), &currentNodeName);
-                napi_set_named_property(env, currentNodeObj, "name", currentNodeName);
+            // 设置type
+            napi_value currentNodeType;
+            napi_create_string_utf8(env, refChain.current_node.type.c_str(), refChain.current_node.type.length(), &currentNodeType);
+            napi_set_named_property(env, currentNodeObj, "type", currentNodeType);
+            
+            // 处理path字段，可能为空字符串
+            napi_value currentNodePath;
+            napi_create_string_utf8(env, refChain.current_node.path.c_str(), refChain.current_node.path.length(), &currentNodePath);
+            napi_set_named_property(env, currentNodeObj, "path", currentNodePath);
                 
-                // 设置type
-                napi_value currentNodeType;
-                napi_create_string_utf8(env, refChain.current_node.type.c_str(), refChain.current_node.type.length(), &currentNodeType);
-                napi_set_named_property(env, currentNodeObj, "type", currentNodeType);
+            // 处理line字段，可能为0
+            napi_value currentNodeLine;
+            napi_create_int32(env, refChain.current_node.line, &currentNodeLine);
+            napi_set_named_property(env, currentNodeObj, "line", currentNodeLine);
             
-                // 处理path字段，可能为空字符串
-                napi_value currentNodePath;
-                napi_create_string_utf8(env, refChain.current_node.path.c_str(), refChain.current_node.path.length(), &currentNodePath);
-                napi_set_named_property(env, currentNodeObj, "path", currentNodePath);
+            // 设置被引用者
+            napi_set_named_property(env, chainObj, "to", currentNodeObj);
                 
-                // 处理line字段，可能为0
-                napi_value currentNodeLine;
-                napi_create_int32(env, refChain.current_node.line, &currentNodeLine);
-                napi_set_named_property(env, currentNodeObj, "line", currentNodeLine);
-            
-                // 设置被引用者
-                napi_set_named_property(env, chainObj, "to", currentNodeObj);
-            
-                // 将链对象添加到链数组
-                napi_set_element(env, chainArray, j, chainObj);
-            }
-            napi_set_element(env, iArray, q, chainArray);
+            // 将链对象添加到链数组
+            napi_set_element(env, chainArray, j, chainObj);
         }
-        // 将链数组添加到结果数组
-        napi_set_element(env, result, i, iArray);
+        napi_set_element(env, result, i, chainArray);
     }
     
     return result;

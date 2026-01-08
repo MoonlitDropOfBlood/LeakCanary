@@ -1,4 +1,4 @@
-import { createTask,destroyTask,getShortestPathToGCRoot, HeapSnapshotResult } from "libleakcanary.so"
+import { createTask,destroyTask,getShortestPathToGCRoot } from "libleakcanary.so"
 import { taskpool, util } from "@kit.ArkTS"
 import hilog from "@ohos.hilog"
 import { AnalysisTask, NodeRef } from "./db/DatabaseInterfaces"
@@ -17,6 +17,7 @@ export function analyze(objects: object[]) {
   const time = systemDateTime.getTime()
   const file = time+"-泄漏"
   let taskInfo:AnalysisTask = {
+    isViewed:false,
     status:1,
     createTime:new Date(time),
     heapSnapshotPath:context.filesDir+'/'+file+'.heapsnapshot'

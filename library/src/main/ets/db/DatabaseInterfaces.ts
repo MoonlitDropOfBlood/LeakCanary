@@ -1,5 +1,5 @@
 import { Table ,Column} from "@zxhhyj/storm";
-import { HeapSnapshotResult } from "libleakcanary.so";
+import { ReferenceChain } from "libleakcanary.so";
 
 /**
  * 节点引用信息接口
@@ -10,7 +10,7 @@ export interface NodeRef {
   /** 节点名称 */
   name: string;
   /** 到GC根的引用链 */
-  ref: HeapSnapshotResult[][];
+  ref: ReferenceChain[];
 }
 
 /**
@@ -30,6 +30,8 @@ export interface AnalysisTask {
   completeTime?: Date;
   /** 任务状态 (1: 进行中, 2: 完成, 3: 失败) */
   status: number;
+  /** 是否查看 */
+  isViewed: boolean;
   /** 分析结果 - 引用路径列表 */
   referencePaths?: NodeRef[];
 }
@@ -39,6 +41,7 @@ export class AnalysisTaskTable extends Table<AnalysisTask>{
   readonly taskId = Column.integer('task_id').primaryKey(true).bindTo(this, 'taskId')
   readonly heapSnapshotPath = Column.text('heap_snapshot_path').notNull().bindTo(this, 'heapSnapshotPath')
   readonly status = Column.integer('status').notNull().bindTo(this, 'status')
+  readonly isViewed = Column.boolean('is_viewed').notNull().bindTo(this, 'isViewed')
   readonly createTime = Column.timestamp('create_time').notNull().bindTo(this, 'createTime')
   readonly completeTime = Column.timestamp('complete_time').bindTo(this, 'completeTime')
   readonly referencePaths = Column.text('reference_paths',{

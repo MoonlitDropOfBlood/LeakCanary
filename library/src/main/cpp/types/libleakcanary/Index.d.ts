@@ -24,10 +24,6 @@ export interface ReferenceChain {
   edgeType: string;
   to: ReferenceChainNode;
 }
-// 堆快照解析结果类型
-export interface  HeapSnapshotResult  {
-  [className: string]: ReferenceChainNode[][];
-}
 
 // 创建内存快照分析任务
 export const createTask: (filePath: string) => number;
@@ -36,4 +32,4 @@ export const createTask: (filePath: string) => number;
 export const destroyTask: (taskId: number) => boolean;
 
 // 获取到GC根的最短引用链
-export const getShortestPathToGCRoot: (taskId: number, nodeName: string, maxPaths?: number) => HeapSnapshotResult[][][];
+export const getShortestPathToGCRoot: (taskId: number, name: string, maxDepth?: number) => ReferenceChain[][];

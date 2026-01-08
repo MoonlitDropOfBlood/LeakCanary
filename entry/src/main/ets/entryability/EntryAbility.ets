@@ -15,7 +15,7 @@ export default class EntryAbility extends UIAbility {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
-    LeakCanary.initRegisterGlobalWatch()
+    LeakCanary.initRegisterGlobalWatch(this.context)
   }
 
   onDestroy(): void {

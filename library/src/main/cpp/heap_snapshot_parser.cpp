@@ -425,14 +425,14 @@ void TaskHeapSnapshot::buildReferences() {
 }
 
 // 使用BFS算法查找从目标节点到GC根的最短引用链
-std::vector<std::vector<ReferenceChain>> TaskHeapSnapshot::getShortestPathToGCRoot(int nodeId, int maxPaths) {
-    std::vector<std::vector<ReferenceChain>> resultChains;
+std::vector<ReferenceChain> TaskHeapSnapshot::getShortestPathToGCRoot(int nodeId, int maxDepth) {
+    std::vector<ReferenceChain> shortestChain;
     
     // 查找目标节点
     auto it = nodeIdToIndexMap.find(nodeId);
     if (it == nodeIdToIndexMap.end()) {
         std::cerr << "未找到ID为 " << nodeId << " 的节点" << std::endl;
-        return resultChains;
+        return shortestChain;
     }
     
     int targetNodeIndex = it->second;
@@ -440,7 +440,7 @@ std::vector<std::vector<ReferenceChain>> TaskHeapSnapshot::getShortestPathToGCRo
     
     // 如果目标节点本身就是GC根，返回空链
     if (isGCRoot(targetNode.type, targetNode.name)) {
-        return resultChains;
+        return shortestChain;
     }
     
     // BFS队列：(当前节点索引, 路径)
@@ -453,29 +453,28 @@ std::vector<std::vector<ReferenceChain>> TaskHeapSnapshot::getShortestPathToGCRo
     queue.push({targetNodeIndex, {}});
     visited[targetNodeIndex] = true;
     
-    // 最短路径长度，用于提前终止
-    int shortestPathLength = -1;
+    // 最短路径长度标记
+    bool foundShortest = false;
     
-    while (!queue.empty() && resultChains.size() < maxPaths) {
+    while (!queue.empty()) {
         auto [currentNodeIndex, currentPath] = queue.front();
         queue.pop();
+        
+        // 检查是否超过最大深度
+        if (currentPath.size() >= maxDepth) {
+            continue;
+        }
         
         const HeapNode& currentNode = nodes[currentNodeIndex];
         
         // 检查当前节点是否是GC根
         if (isGCRoot(currentNode.type, currentNode.name)) {
-            // 如果当前路径长度大于1（不是直接引用），则添加到结果
-            if (currentPath.size() > 0) {
-                resultChains.push_back(currentPath);
-                if (shortestPathLength == -1) {
-                    shortestPathLength = currentPath.size();
-                }
+            // 如果找到GC根且路径非空，这就是最短路径
+            if (!currentPath.empty()) {
+                shortestChain = currentPath;
+                foundShortest = true;
+                break; // 找到第一条最短路径后立即返回
             }
-            continue;
-        }
-        
-        // 如果已经找到足够的路径且当前路径长度超过最短路径，提前终止
-        if (shortestPathLength != -1 && currentPath.size() > shortestPathLength) {
             continue;
         }
         
@@ -494,7 +493,11 @@ std::vector<std::vector<ReferenceChain>> TaskHeapSnapshot::getShortestPathToGCRo
             if (isGCRoot(referrer.type, referrer.name) && currentPath.empty()) {
                 continue;
             }
-            
+            // 跳过弱引用
+            if (referrer.type == "weak") {
+                continue;
+            }
+                
             // 创建新的引用链节点
             ReferenceChainNode referrerNode(referrer.id, referrer.name, referrer.type, 
                                            referrer.path, referrer.line);
@@ -515,11 +518,11 @@ std::vector<std::vector<ReferenceChain>> TaskHeapSnapshot::getShortestPathToGCRo
         }
     }
     
-    return resultChains;
+    return shortestChain;
 }
 
-std::vector<std::vector<std::vector<ReferenceChain>>> TaskHeapSnapshot::getShortestPathToGCRootByName(const std::string& nodeName, int maxPaths) {
-    std::vector<std::vector<std::vector<ReferenceChain>>> resultChains;
+std::vector<std::vector<ReferenceChain>> TaskHeapSnapshot::getShortestPathToGCRootByName(const std::string& nodeName, int maxDepth) {
+    std::vector<std::vector<ReferenceChain>> resultChains;
     
     // 查找所有名称匹配的节点
     std::vector<int> matchedNodeIds;
@@ -536,8 +539,10 @@ std::vector<std::vector<std::vector<ReferenceChain>>> TaskHeapSnapshot::getShort
     
     // 对每个匹配的节点，获取其到GC根的最短路径
     for (int nodeId : matchedNodeIds) {
-        std::vector<std::vector<ReferenceChain>> chains = getShortestPathToGCRoot(nodeId, maxPaths);
-        resultChains.push_back(chains);
+        std::vector<ReferenceChain> chain = getShortestPathToGCRoot(nodeId,maxDepth);
+        if (!chain.empty()) {  // 只添加非空路径
+            resultChains.push_back(chain);
+        }
     }
     
     return resultChains;

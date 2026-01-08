@@ -5,7 +5,7 @@ import { deviceInfo } from "@kit.BasicServicesKit"
 import hilog from "@ohos.hilog"
 import { LeakNotification } from "./LeakNotification"
 import { appDatabase } from "./db/AppDatabase"
-import { Context } from "@kit.AbilityKit"
+import { common } from "@kit.AbilityKit"
 
 export class LeakCanary {
 
@@ -16,7 +16,7 @@ export class LeakCanary {
    * 全新的监听方式
    * @since 20
    */
-  static initRegisterGlobalWatch(context: Context){
+  static initRegisterGlobalWatch(context: common.UIAbilityContext){
     if(deviceInfo.sdkApiVersion < 20){
       hilog.warn(0x0001, "LeakCanary", "initRegisterGlobalWatch only support sdkApiVersion >= 20")
       return
@@ -35,7 +35,7 @@ export class LeakCanary {
         }
       })
       LeakCanary.isInit = true
-      LeakNotification.getInstance()
+      LeakNotification.getInstance().initPublisher(context)
     }catch (e) {
       hilog.error(0x0001, "LeakCanary", "initRegisterGlobalWatch error " + e)
     }
@@ -61,7 +61,7 @@ export class LeakCanary {
         })
       }
     })
-    LeakNotification.getInstance()
+    LeakNotification.getInstance().initPublisher(uiContext.getHostContext()!! as common.UIAbilityContext)
   }
 
   private static registerAllChild(pageComponent: object) {

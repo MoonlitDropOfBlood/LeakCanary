@@ -33,7 +33,7 @@ class ObjWatch {
             heldValue.cacheGCCount.set(info, oldCount)
             if(oldCount >= 2) {
               if (noGC.add(info)) {
-                hilog.error(0x0001, "GC", `组件 ${info.constructor.name} 可能发生泄漏，hash值为${util.getHash(info)}`)
+                hilog.error(0x0001, "GC", `对象 ${info.constructor.name} 可能发生泄漏，hash值为${util.getHash(info)}`)
                 if (firstLeak == undefined) {
                   firstLeak = info.constructor.name
                 }
@@ -42,7 +42,7 @@ class ObjWatch {
           }
         })
         if(noGC.length > 0) {
-          hilog.error(0x0001,"GC","可能泄漏的组件为数为 " + noGC.length)
+          hilog.error(0x0001,"GC","可能泄漏的对象为数为 " + noGC.length)
           LeakNotification.getInstance().publishNotification(`检测到${firstLeak}等${noGC.length}个组件泄漏`)
           heldValue.analyzeHeapSnapshot(Array.from(noGC.values()))
         }

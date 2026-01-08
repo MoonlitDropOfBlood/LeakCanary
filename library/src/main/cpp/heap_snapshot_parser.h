@@ -93,8 +93,8 @@ public:
     ~TaskHeapSnapshot() = default;
     
     bool parseSnapshot();
-    std::vector<std::vector<ReferenceChain>> getShortestPathToGCRoot(int nodeId, int maxPaths = 3);
-    std::vector<std::vector<std::vector<ReferenceChain>>> getShortestPathToGCRootByName(const std::string& nodeName, int maxPaths = 3);
+    std::vector<ReferenceChain> getShortestPathToGCRoot(int nodeId, int maxDepth = 5);
+    std::vector<std::vector<ReferenceChain>> getShortestPathToGCRootByName(const std::string& nodeName, int maxDepth = 5);
     
 private:
     void parseMetaAndData();
