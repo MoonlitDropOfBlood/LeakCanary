@@ -1,10 +1,10 @@
-# LeakCanary Library for OpenHarmony
+# LeakGuard Library for OpenHarmony
 
 ## 简介
 
-[![openHarmony](https://img.shields.io/badge/openharmony-v2.0.0-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v2.0.0)
+[![openHarmony](https://img.shields.io/badge/openharmony-v2.1.0-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v2.1.0)
 
-LeakCanary是一个为OpenHarmony开发的内存泄漏检测库，提供自动化的内存泄漏监控和检测功能。
+LeakGuard是一个为OpenHarmony开发的内存泄漏检测库，提供自动化的内存泄漏监控和检测功能。
 
 - 支持自动检测组件内存泄漏
 - 基于`WeakMap`和`FinalizationRegistry`实现高效的内存监控
@@ -15,7 +15,7 @@ LeakCanary是一个为OpenHarmony开发的内存泄漏检测库，提供自动�
 ## 下载安装
 
 ````shell
-ohpm install @duke/leak-canary
+ohpm install @duke/leak-guard
 ````
 
 OpenHarmony ohpm
@@ -25,28 +25,28 @@ OpenHarmony ohpm
 
 ### 基本用法
 
-导入LeakCanary库：
+导入LeakGuard库：
 
 ```extendtypescript
-import { LeakCanary } from '@duke/leak-canary';
+import { LeakGuard } from '@duke/leak-guard';
 ```
 
 ### 核心API
 
 #### 全局初始化监控（推荐）API 20开始
 
-在 EntryAbility 中初始化 LeakCanary 全局监控：
+在 EntryAbility 中初始化 LeakGuard 全局监控：
 
 ```extendtypescript
-LeakCanary.initRegisterGlobalWatch();
+LeakGuard.initRegisterGlobalWatch();
 ```
 
 #### 初始化监控 API 20(不含)以下
 
-初始化LeakCanary并传入根组件：
+初始化LeakGuard并传入根组件：
 
 ```extendtypescript
-LeakCanary.registerRootWatch(rootComponent);
+LeakGuard.registerRootWatch(rootComponent);
 ```
 
 
@@ -55,19 +55,35 @@ LeakCanary.registerRootWatch(rootComponent);
 手动注册需要监控的组件（仅在特殊场景下使用）：
 
 ```extendtypescript
-LeakCanary.registerComponent(component);
+LeakGuard.registerComponent(component);
 ```
 
-### LeakCanary
+### LeakGuard
 
 | 方法名                     | 入参                    | 接口描述                         |
 |:------------------------|:----------------------|:-----------------------------|
 | initRegisterGlobalWatch | -                     | 全局初始化内存泄漏监控，自动监听所有自定义组件      |
 | registerRootWatch       | rootComponent: object | 注册Navigation根组件进行内存泄漏监控（已弃用） |
 | registerComponent       | component: object     | 手动注册监听，不用考虑时机（已弃用）           |
+
+### ObjWatch
+
+| 方法名            | 入参                       | 接口描述       |
+|:---------------|:-------------------------|:-----------|
+| setSensitivity | sensitivity: Sensitivity | 设置灵敏度      |
+| registry       | obj: object              | 手动注册弃用对象监听 |
+
+### Sensitivity
+
+| 枚举     | 说明                                  |
+|:-------|:------------------------------------|
+| HEIGHT | 高灵敏度<br/>容易产生误报，但是能够及时发现短时内存泄漏      |
+| LOW    | 低灵敏度<br/>基本不会产生误报，但是触发时间比较久<br/>默认值 |
+
+
 ### 工作原理
 
-LeakCanary通过以下方式实现内存泄漏检测：
+LeakGuard通过以下方式实现内存泄漏检测：
 
 1. 利用 `WeakMap` 和 `WeakRef` 弱引用机制避免干扰正常GC
 2. 通过 `FinalizationRegistry` 监听对象被GC的时机
@@ -94,6 +110,7 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 * [已完成] 添加通知功能，检测到内存泄漏时，会弹出通知提示
 * [已完成] 新增快照功能，在发生泄漏时，会自动生成快照文件并进行分析
 * [已完成] 添加数据库，存储泄漏信息，提供查询功能
+* [已完成] 添加内存泄漏检测报告页面，分近期和全部
 
 受限：API 20以上支持全局自动监听所有自定义组件
 * [已完成] ❗全局自动监听所有自定义组件
@@ -103,12 +120,12 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 
 未完成：
 
-* [未完成] 添加内存泄漏检测报告页面，分近期和全部
+无
 
 ## 目录结构
 
 ````
-|---- LeakCanary
+|---- LeakGuard
 |     |---- AppScrope  # 示例代码文件夹
 |     |---- entry  # 示例代码文件夹
 |---- library 
@@ -116,7 +133,7 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 |     |---- src 
 |            |---- main 
 |                    |---- ets 
-|                           |---- LeakCanary.ts # 主入口文件 
+|                           |---- LeakGuard.ts # 主入口文件 
 |                           |---- ObjWatch.ts # 内存监控核心实现 
 |     |---- index.ets # 对外接口 
 |     |---- README.md # 安装使用方法  

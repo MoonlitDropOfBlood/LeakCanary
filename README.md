@@ -2,7 +2,7 @@
 
 ## 简介
 
-[![openHarmony](https://img.shields.io/badge/openharmony-v2.1.0-brightgreen)](https://gitee.com/Duke_Bit/leak-guard/releases/tag/v2.1.0)
+[![openHarmony](https://img.shields.io/badge/openharmony-v2.1.0-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v2.1.0)
 
 LeakGuard是一个为OpenHarmony开发的内存泄漏检测库，提供自动化的内存泄漏监控和检测功能。
 
@@ -68,9 +68,18 @@ LeakGuard.registerComponent(component);
 
 ### ObjWatch
 
-| 方法名      | 入参          | 接口描述       |
-|:---------|:------------|:-----------|
-| registry | obj: object | 手动注册弃用对象监听 |
+| 方法名            | 入参                       | 接口描述       |
+|:---------------|:-------------------------|:-----------|
+| setSensitivity | sensitivity: Sensitivity | 设置灵敏度      |
+| registry       | obj: object              | 手动注册弃用对象监听 |
+
+### Sensitivity
+
+| 枚举     | 说明                                  |
+|:-------|:------------------------------------|
+| HEIGHT | 高灵敏度<br/>容易产生误报，但是能够及时发现短时内存泄漏      |
+| LOW    | 低灵敏度<br/>基本不会产生误报，但是触发时间比较久<br/>默认值 |
+
 
 ### 工作原理
 
@@ -101,6 +110,7 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 * [已完成] 添加通知功能，检测到内存泄漏时，会弹出通知提示
 * [已完成] 新增快照功能，在发生泄漏时，会自动生成快照文件并进行分析
 * [已完成] 添加数据库，存储泄漏信息，提供查询功能
+* [已完成] 添加内存泄漏检测报告页面，分近期和全部
 
 受限：API 20以上支持全局自动监听所有自定义组件
 * [已完成] ❗全局自动监听所有自定义组件
@@ -110,7 +120,7 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 
 未完成：
 
-* [未完成] 添加内存泄漏检测报告页面，分近期和全部
+无
 
 ## 目录结构
 
@@ -132,12 +142,12 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 
 ## 贡献代码
 
-使用过程中发现任何问题都可以提 [Issue](https://gitee.com/Duke_Bit/leak-guard/issues)
-给我，当然，我也非常欢迎你给我发 [PR](https://gitee.com/Duke_Bit/leak-guard) 。
+使用过程中发现任何问题都可以提 [Issue](https://gitee.com/Duke_Bit/leak-canary/issues)
+给我，当然，我也非常欢迎你给我发 [PR](https://gitee.com/Duke_Bit/leak-canary) 。
 
 ## 开源协议
 
-本项目基于 [MIT license](https://gitee.com/Duke_Bit/leak-guard/blob/master/LICENSE) ，请自由地享受和参与开源。
+本项目基于 [MIT license](https://gitee.com/Duke_Bit/leak-canary/blob/master/LICENSE) ，请自由地享受和参与开源。
 
 ## 其他库
 

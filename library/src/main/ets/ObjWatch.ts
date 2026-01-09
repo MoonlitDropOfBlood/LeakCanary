@@ -5,7 +5,16 @@ import { common } from '@kit.AbilityKit'
 import { NodeInfo } from './model/NodeInfo'
 
 export enum Sensitivity{
+  /**
+   * 高灵敏度
+   * 容易产生误报，但是能够及时发现短时内存泄漏
+   */
   HEIGHT = 1,
+  /**
+   * 低灵敏度
+   * 基本不会产生误报，但是触发时间比较久
+   * 默认值
+   */
   LOW = 2
 }
 
