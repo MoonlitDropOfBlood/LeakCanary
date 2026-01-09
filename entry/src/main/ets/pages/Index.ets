@@ -1,7 +1,7 @@
 import { ZRouter } from '@hzw/zrouter';
 import { Custom1Component } from './CustomComponent';
-import { LeakCanary } from '@duke/leak-canary'
 import { notificationManager } from '@kit.NotificationKit';
+import { LEAK_TASK_ROUTE_NAME } from '@duke/leak-guard';
 
 @Entry
 @Component
@@ -18,7 +18,9 @@ struct Index {
     Navigation(ZRouter.getNavStack()) {
       RelativeContainer() {
         Custom1Component()
-          .backgroundColor(Color.White)
+          .backgroundColor(Color.Red)
+          .height(200)
+          .width(200)
         Text(this.message)
           .id('HelloWorld')
           .fontSize($r('app.float.page_text_font_size'))
@@ -30,6 +32,16 @@ struct Index {
           .onClick(() => {
             ZRouter.getInstance().push("entry/TestNav1Child")
           })
+
+        Button('调试分析页面')
+          .onClick(()=>{
+            this.getUIContext().getRouter().pushNamedRoute({name:LEAK_TASK_ROUTE_NAME})
+          })
+          .alignRules({
+            top: { anchor: '__container__', align: VerticalAlign.Top },
+            right: { anchor: '__container__', align: HorizontalAlign.End }
+          })
+
       }
       .height('100%')
       .width('100%')

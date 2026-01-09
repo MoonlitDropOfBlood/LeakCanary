@@ -4,5 +4,6 @@ import './src/main/ets/pages/LeakPage'
 
 objWatch.analyzeHeapSnapshot = analyze
 
-export { LeakCanary } from './src/main/ets/LeakGuard';
+export { LeakGuard } from './src/main/ets/LeakGuard';
 export { objWatch }
+export { LEAK_TASK_ROUTE_NAME } from './src/main/ets/Constants'

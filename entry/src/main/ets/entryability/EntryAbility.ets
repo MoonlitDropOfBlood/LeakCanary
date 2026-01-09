@@ -3,7 +3,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { ZRouter } from '@hzw/zrouter';
 import BuildProfile from 'BuildProfile';
-import { LeakCanary } from '@duke/leak-canary';
+import { LeakGuard } from '@duke/leak-guard';
 
 const DOMAIN = 0x0000;
 
@@ -15,7 +15,7 @@ export default class EntryAbility extends UIAbility {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
-    LeakCanary.initRegisterGlobalWatch(this.context)
+    LeakGuard.initRegisterGlobalWatch(this.context)
   }
 
   onDestroy(): void {

@@ -2,9 +2,10 @@ import { appDatabase } from "../db/AppDatabase"
 import { hilog } from "@kit.PerformanceAnalysisKit"
 import { TaskVO } from "../model/TaskVO"
 import './LeakDetails'
+import { LEAK_TASK_ROUTE_NAME } from "../Constants"
 
 @Preview
-@Entry({routeName: 'LeakTasksPage'})
+@Entry({routeName: LEAK_TASK_ROUTE_NAME})
 @ComponentV2
 export struct LeakPage {
 
@@ -33,14 +34,15 @@ export struct LeakPage {
                 Text(){
                   Span(repeatItem.item.task.referencePaths?.toString() ?? '0')
                 }
-                .fontSize(16)
-                .fontWeight(FontWeight.Medium)
+                .fontSize(20)
+                .fontWeight(FontWeight.Bold)
                 .height(48)
                 .width(48)
                 .align(Alignment.Center)
+                .textAlign(TextAlign.Center)
                 .borderRadius(8)
-                .fontColor('#003688')
-                .backgroundColor('#88003688')
+                .fontColor('#ffe99100')
+                .backgroundColor('#30003688')
 
                 Column({space:8}){
                   Text(repeatItem.item.task.heapSnapshotPath)

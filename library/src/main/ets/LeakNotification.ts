@@ -1,6 +1,7 @@
 import { notificationManager } from "@kit.NotificationKit"
-import { AbilityLifecycleCallback, common, UIAbility, wantAgent } from "@kit.AbilityKit"
+import { AbilityLifecycleCallback, common, UIAbility, WantAgent, wantAgent } from "@kit.AbilityKit"
 import { router, window } from "@kit.ArkUI"
+import { LEAK_START_URI, LEAK_TASK_ROUTE_NAME } from "./Constants"
 
 export class LeakNotification {
   //单例
@@ -12,42 +13,44 @@ export class LeakNotification {
     return this.instance
   }
 
-  private wantAgentInfo:wantAgent.WantAgentInfo = null
-  private lifecycleId:number = -1
+  private wantAgent:WantAgent = null
 
   initPublisher(context:common.UIAbilityContext) {
     if (!notificationManager.isNotificationEnabledSync()) {//通知权限未开启
       return
     }
-    if(this.wantAgentInfo){
+    if(this.wantAgent){
       return
     }
-    this.wantAgentInfo = this.createWantAgent(context.abilityInfo.bundleName,context.abilityInfo.name)
-    notificationManager.publish({
-      content:{
-        notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
-        normal:{
-          title:"LeakCanary",
-          text:"正在检测内存泄漏"
-        }
-      },
-      label:"LeakCanary",
-      notificationSlotType: notificationManager.SlotType.SERVICE_INFORMATION,
-      isAlertOnce:true,
-      tapDismissed:false,
-      wantAgent:this.wantAgentInfo,
+    this.createWantAgent(context.abilityInfo.bundleName,context.abilityInfo.name).then((want:WantAgent)=>{
+      this.wantAgent = want
+      notificationManager.publish({
+        content:{
+          notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
+          normal:{
+            title:"LeakGuard",
+            text:"正在检测内存泄漏"
+          }
+        },
+        label:"LeakGuard",
+        notificationSlotType: notificationManager.SlotType.SERVICE_INFORMATION,
+        isAlertOnce:true,
+        tapDismissed:false,
+        wantAgent:want,
+      })
     })
+
     let applicationContext = context.getApplicationContext();
-    this.lifecycleId = applicationContext.on('abilityLifecycle', this.abilityLifecycleCallback);
+    applicationContext.on('abilityLifecycle', this.abilityLifecycleCallback);
   }
 
   private readonly abilityLifecycleCallback: AbilityLifecycleCallback = {
     onAbilityCreate(ability: UIAbility) {
     },
     onWindowStageCreate(ability: UIAbility, windowStage: window.WindowStage) {
-      if(ability.launchWant.uri == 'leakcanary://leaknotification'){
+      if(ability.launchWant.parameters?.['route'] == LEAK_START_URI){
         setTimeout(()=>{
-          router.pushNamedRoute({name:'LeakTasksPage'})
+          router.pushNamedRoute({name:LEAK_TASK_ROUTE_NAME})
         },1000)
         return
       }
@@ -59,7 +62,6 @@ export class LeakNotification {
     onWindowStageDestroy(ability: UIAbility, windowStage: window.WindowStage) {
     },
     onAbilityDestroy(ability: UIAbility) {
-      ability.context.getApplicationContext().off('abilityLifecycle',LeakNotification.getInstance().lifecycleId)
     },
     onAbilityForeground(ability: UIAbility) {
 
@@ -69,8 +71,8 @@ export class LeakNotification {
     onAbilityContinue(ability: UIAbility) {
     },
     onNewWant(ability: UIAbility) {
-      if(ability.lastRequestWant.uri == 'leakcanary://leaknotification'){
-        router.pushNamedRoute({name:'LeakTasksPage'})
+      if(ability.lastRequestWant.parameters?.['route'] == LEAK_START_URI){
+        router.pushNamedRoute({name:LEAK_TASK_ROUTE_NAME})
         return
       }
     },
@@ -101,15 +103,16 @@ export class LeakNotification {
   };
 
 
-  private createWantAgent(bundleName:string,abilityName:string):wantAgent.WantAgentInfo {
+  private createWantAgent(bundleName:string,abilityName:string):Promise<WantAgent> {
     const  wantAgentInfo: wantAgent.WantAgentInfo = {
       // 点击通知后，将要执行的动作列表
       // 添加需要被拉起应用的bundleName和abilityName
       wants: [
         {
+          deviceId:'',
           bundleName: bundleName,
           abilityName: abilityName,
-          uri: 'leakcanary://leaknotification',
+          parameters: {"route":LEAK_START_URI},
         }
       ],
       // 指定点击通知栏消息后的动作是拉起ability
@@ -119,7 +122,7 @@ export class LeakNotification {
       // 点击通知后，动作执行属性
       actionFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG],
     }
-    return wantAgentInfo
+    return wantAgent.getWantAgent(wantAgentInfo)
   }
 
   publishNotification(text: string) {
@@ -127,15 +130,15 @@ export class LeakNotification {
       content:{
         notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
         normal:{
-          title:"LeakCanary",
+          title:"LeakGuard",
           text:text
         }
       },
-      label:"LeakCanary",
+      label:"LeakGuard",
       notificationSlotType: notificationManager.SlotType.SERVICE_INFORMATION,
       isAlertOnce:true,
       tapDismissed:false,
-      wantAgent:this.wantAgentInfo
+      wantAgent:this.wantAgent
     })
   }
 }

@@ -7,7 +7,7 @@ import { LeakNotification } from "./LeakNotification"
 import { appDatabase } from "./db/AppDatabase"
 import { common } from "@kit.AbilityKit"
 
-export class LeakCanary {
+export class LeakGuard {
 
   private static isInit: boolean = false
 
@@ -18,11 +18,11 @@ export class LeakCanary {
    */
   static initRegisterGlobalWatch(context: common.UIAbilityContext){
     if(deviceInfo.sdkApiVersion < 20){
-      hilog.warn(0x0001, "LeakCanary", "initRegisterGlobalWatch only support sdkApiVersion >= 20")
+      hilog.warn(0x0001, "LeakGuard", "initRegisterGlobalWatch only support sdkApiVersion >= 20")
       return
     }
-    if(LeakCanary.isInit){
-      hilog.warn(0x0001, "LeakCanary", "initRegisterGlobalWatch already init")
+    if(LeakGuard.isInit){
+      hilog.warn(0x0001, "LeakGuard", "initRegisterGlobalWatch already init")
       return
     }
     appDatabase.init(context)
@@ -34,10 +34,10 @@ export class LeakCanary {
           objWatch.registry(component)
         }
       })
-      LeakCanary.isInit = true
+      LeakGuard.isInit = true
       LeakNotification.getInstance().initPublisher(context)
     }catch (e) {
-      hilog.error(0x0001, "LeakCanary", "initRegisterGlobalWatch error " + e)
+      hilog.error(0x0001, "LeakGuard", "initRegisterGlobalWatch error " + e)
     }
   }
 
@@ -47,7 +47,7 @@ export class LeakCanary {
    * @since 12
    */
   static registerRootWatch(rootComponent: object) {
-    LeakCanary.registerComponent(rootComponent)
+    LeakGuard.registerComponent(rootComponent)
     const uiContext:UIContext = rootComponent['getUIContext']()
     appDatabase.init(uiContext.getHostContext()!!)
     uiContext.getUIObserver().on("navDestinationUpdate", (navInfo) => {
@@ -56,7 +56,7 @@ export class LeakCanary {
         map.forEach((value, key) => {
           if (key + 1 == navInfo.uniqueId) {
             let pageComponent = value.deref()
-            LeakCanary.registerAllChild(pageComponent)
+            LeakGuard.registerAllChild(pageComponent)
           }
         })
       }
@@ -72,7 +72,7 @@ export class LeakCanary {
     }
     map.forEach((value) => {
       let childComponent = value.deref()
-      LeakCanary.registerAllChild(childComponent)
+      LeakGuard.registerAllChild(childComponent)
     });
   }
 
@@ -88,7 +88,7 @@ export class LeakCanary {
       onFrame:(frameTimeInNano:number)=>{
         let node = uiContext.getFrameNodeByUniqueId(uniqueId)
         node.commonEvent.setOnDisappear(()=>{
-          LeakCanary.registerAllChild(component)
+          LeakGuard.registerAllChild(component)
         })
       },
       onIdle:(timeLeftInNano: number)=>{}

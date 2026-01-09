@@ -22,7 +22,9 @@ export struct TestNav2Child {
       Text('测试')
       ForEach(this.a, (item:number) => {
         Custom1Component()
-          .backgroundColor(Color.White)
+          .backgroundColor(Color.Red)
+          .height(200)
+          .width(200)
           .onClick(() => {
             ZRouter.getInstance().push("entry/TestNav1Child")
           })
