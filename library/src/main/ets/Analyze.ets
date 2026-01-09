@@ -30,16 +30,8 @@ export function analyze(objects: NodeInfo[]) {
       LeakNotification.getInstance().publishNotification(file+" 分析失败")
       return
     }
-    let task = new taskpool.Task(analyzeHash,file,objects)
-    taskpool.execute(task,taskpool.Priority.HIGH).catch(() => {
-      hilog.error(0x0002, "Analyze", "analyzeHash error")
-      taskInfo.status = 3
-      appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
-        hilog.error(0x0002, "Analyze", "update taskInfo error")
-      })
-      LeakNotification.getInstance().publishNotification(file+" 分析失败")
-      return
-    }).then((nodeRefs)=>{
+    let task = new taskpool.Task(analyzeHash,taskInfo.heapSnapshotPath,objects)
+    taskpool.execute(task,taskpool.Priority.HIGH).then((nodeRefs)=>{
       hilog.debug(0x0002, "Analyze","analyzeHash done")
       taskInfo.status = 2
       taskInfo.referencePaths = nodeRefs as Array<NodeRef>
@@ -48,6 +40,13 @@ export function analyze(objects: NodeInfo[]) {
         hilog.error(0x0002, "Analyze", "update taskInfo error")
       })
       LeakNotification.getInstance().publishNotification(file+" 分析成功")
+    }).catch(() => {
+      hilog.error(0x0002, "Analyze", "analyzeHash error")
+      taskInfo.status = 3
+      appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
+        hilog.error(0x0002, "Analyze", "update taskInfo error")
+      })
+      LeakNotification.getInstance().publishNotification(file+" 分析失败")
     })
   })
 

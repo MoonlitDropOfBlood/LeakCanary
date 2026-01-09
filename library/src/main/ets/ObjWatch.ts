@@ -4,6 +4,11 @@ import { LeakNotification } from './LeakNotification'
 import { common } from '@kit.AbilityKit'
 import { NodeInfo } from './model/NodeInfo'
 
+export enum Sensitivity{
+  HEIGHT = 1,
+  LOW = 2
+}
+
 class ObjWatch {
   private cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
   private cacheGCCount:WeakMap<object, number> = new WeakMap()
@@ -12,6 +17,15 @@ class ObjWatch {
 
   private context:common.ApplicationContext
 
+  private sensitivity = Sensitivity.LOW
+
+  /**
+   * 设置灵敏度
+   * @param sensitivity 灵敏度
+   */
+  setSensitivity(sensitivity:Sensitivity){
+    this.sensitivity = sensitivity
+  }
 
   registry(owner: object) {
     if(!this.context){
@@ -31,7 +45,7 @@ class ObjWatch {
           }else{
             let oldCount = (heldValue.cacheGCCount.get(info) ?? 0) + 1
             heldValue.cacheGCCount.set(info, oldCount)
-            if(oldCount >= 2) {
+            if(oldCount >= this.sensitivity) {
               if (noGC.add(info)) {
                 hilog.error(0x0001, "GC", `对象 ${info.constructor.name} 可能发生泄漏，hash值为${util.getHash(info)}`)
                 if (firstLeak == undefined) {
