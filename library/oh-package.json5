@@ -1,5 +1,5 @@
 {
-  "name": "@duke/leak-canary",
+  "name": "@duke/leak-guard",
   "version": "2.0.0",
   "description": "实时检测 ArkTS 组件内存泄漏",
   "main": "Index.ets",
@@ -11,10 +11,10 @@
     "HarmonyOS",
     "OpenHarmony"
   ],
-  "repository": "https://gitee.com/Duke_Bit/leak-canary",
+  "repository": "https://gitee.com/Duke_Bit/leak-guard",
   "homepage": "https://gitee.com/Duke_Bit",
   "dependencies": {
-    "libleakcanary.so": "file:./src/main/cpp/types/libleakcanary",
+    "libleakguard.so": "file:./src/main/cpp/types/libleakguard",
     "@zxhhyj/storm": "^3.0.9"
   }
 }

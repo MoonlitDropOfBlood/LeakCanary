@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 # 设置项目名称
-project(leakcanary)
+project(leakguard)
 
 # 设置rapidjson库路径
 set(RAPIDJSON_INCLUDE_DIRS ../../../../rapidjson/include)

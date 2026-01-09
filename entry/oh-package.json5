@@ -7,7 +7,7 @@
   "license": "",
   "dependencies": {
     "@hzw/zrouter": "^1.5.0",
-    "@duke/leak-canary": "file:../library"
+    "@duke/leak-guard": "file:../library"
   }
 }
 

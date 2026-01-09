@@ -1,4 +1,4 @@
-import { createTask,destroyTask,getShortestPathToGCRoot } from "libleakcanary.so"
+import { createTask,destroyTask,getShortestPathToGCRoot } from "libleakguard.so"
 import { taskpool, util } from "@kit.ArkTS"
 import hilog from "@ohos.hilog"
 import { AnalysisTask, NodeRef } from "./db/DatabaseInterfaces"
@@ -6,14 +6,11 @@ import { hidebug } from "@kit.PerformanceAnalysisKit"
 import { systemDateTime } from "@kit.BasicServicesKit"
 import { appDatabase } from "./db/AppDatabase"
 import { LeakNotification } from "./LeakNotification"
+import { NodeInfo } from "./model/NodeInfo"
 
-interface NodeInfo{
-  hash:number
-  name:string
-}
 
-export function analyze(objects: object[]) {
-  let context = getContext().getApplicationContext()
+export function analyze(objects: NodeInfo[]) {
+  const context = getContext().getApplicationContext()
   const time = systemDateTime.getTime()
   const file = time+"-泄漏"
   let taskInfo:AnalysisTask = {
@@ -33,10 +30,7 @@ export function analyze(objects: object[]) {
       LeakNotification.getInstance().publishNotification(file+" 分析失败")
       return
     }
-    let task = new taskpool.Task(analyzeHash,file,objects.map<NodeInfo>(it=>({
-      hash:util.getHash(it),
-      name:it.constructor.name
-    })))
+    let task = new taskpool.Task(analyzeHash,file,objects)
     taskpool.execute(task,taskpool.Priority.HIGH).catch(() => {
       hilog.error(0x0002, "Analyze", "analyzeHash error")
       taskInfo.status = 3

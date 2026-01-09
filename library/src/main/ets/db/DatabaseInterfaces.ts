@@ -1,5 +1,5 @@
 import { Table ,Column} from "@zxhhyj/storm";
-import { ReferenceChain } from "libleakcanary.so";
+import { ReferenceChain } from "libleakguard.so";
 
 /**
  * 节点引用信息接口

@@ -240,7 +240,7 @@ static napi_module leakModule = {
     .nm_flags = 0,
     .nm_filename = nullptr,
     .nm_register_func = Init,
-    .nm_modname = "leakcanary",
+    .nm_modname = "leakguard",
     .nm_priv = nullptr,
     .reserved = { 0 }
 };
