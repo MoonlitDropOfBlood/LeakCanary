@@ -47,6 +47,7 @@ export struct LeakDetails{
       .layoutWeight(1)
       .width('100%')
       .scrollBar(BarState.Off)
+      .sticky(StickyStyle.Header)
 
     }.width('100%')
     .height('100%')
@@ -60,5 +61,6 @@ export struct LeakDetails{
       .borderRadius(8)
       .borderWidth(1)
       .borderColor('#80999999')
+      .backgroundColor('#999999')
   }
 }

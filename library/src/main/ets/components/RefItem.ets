@@ -5,33 +5,22 @@ export struct RefItem{
 
   @Param @Require item:RepeatItem<ReferenceChain>
 
-  @Local bottomLineHeight:number = 0
-
   build() {
     ListItem(){
       Flex({ alignItems: ItemAlign.Stretch }) {
         Column(){
           Stack()
-            .width(1)
+            .width(2)
             .height(14)
             .backgroundColor('#999999')
-            .margin({left:2})
-          Circle()
-            .width(6)
-            .height(6)
-            .fill('#888888')
-            .margin({left:2})
-          if(this.item.item.from.name != 'SyntheticRoot'){
-            Stack()
-              .width(1)
-              .height(this.bottomLineHeight)
-              .backgroundColor('#999999')
-              .margin({left:2})
-          }
-        }.onSizeChange((_,newValue)=>{
-          this.bottomLineHeight = newValue.height as number - 20
-        })
 
+          Circle()
+            .width(8)
+            .height(8)
+            .fill('#888888')
+        }.backgroundColor(this.item.item.from.name != 'SyntheticRoot' ? '#999999' : Color.Transparent)
+        .width(2)
+        .alignItems(HorizontalAlign.Center)
 
 
         Column({space:8}){
@@ -43,7 +32,7 @@ export struct RefItem{
         }.alignItems(HorizontalAlign.Start)
         .id('content')
         .height('auto')
-        .margin({top:8,left:18})
+        .padding({top:8,left:18})
       }.width('100%')
     }
     .padding({left:16,right:16})
