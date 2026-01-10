@@ -18,7 +18,7 @@ export struct LeakDetails{
           })
           .fillColor('#999999')
 
-        Text(this.task.heapSnapshotPath)
+        Text(this.task.heapSnapshotPath.replaceAll('.heapsnapshot','').replaceAll((this.getUIContext().getHostContext()?.getApplicationContext()?.filesDir ?? '')+'/','')+' '+(this.task.referencePaths?.length ?? 0)+'个泄漏')
           .fontSize(24)
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
