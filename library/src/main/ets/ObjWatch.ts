@@ -28,6 +28,10 @@ class ObjWatch {
 
   private sensitivity = Sensitivity.LOW
 
+  private autoClear:boolean = false
+
+  private isAnalyzing:boolean = false
+
   /**
    * 设置灵敏度
    * @param sensitivity 灵敏度
@@ -36,12 +40,21 @@ class ObjWatch {
     this.sensitivity = sensitivity
   }
 
+  /**
+   * 设置是否自动清除
+   * @param autoClear 是否自动清除
+   */
+  setAutoClear(autoClear:boolean){
+    this.autoClear = autoClear
+  }
+
   registry(owner: object) {
     if(!this.context){
       this.context = owner['getUIContext']().getHostContext().getApplicationContext()
     }
     this.cacheValue.add(new WeakRef(owner))
-    if (this.targetGC?.deref() == undefined) {
+    if (this.targetGC?.deref() == undefined && this.isAnalyzing == false) {
+      this.isAnalyzing = true
       let gcSource = new Object()
       this.targetGC = new WeakRef(gcSource)
       const registry = new FinalizationRegistry((heldValue: ObjWatch) => {
@@ -54,7 +67,7 @@ class ObjWatch {
           }else{
             let oldCount = (heldValue.cacheGCCount.get(info) ?? 0) + 1
             heldValue.cacheGCCount.set(info, oldCount)
-            if(oldCount >= this.sensitivity) {
+            if(oldCount >= heldValue.sensitivity) {
               if (noGC.add(info)) {
                 hilog.error(0x0001, "GC", `对象 ${info.constructor.name} 可能发生泄漏，hash值为${util.getHash(info)}`)
                 if (firstLeak == undefined) {
@@ -72,13 +85,23 @@ class ObjWatch {
             name:it.constructor.name
           }))
           noGC.clear()// 清空noGC，防止后续分析中出现不必要的引用
-          heldValue.analyzeHeapSnapshot(nodeInfos)
+          const cloneCache = heldValue.cacheValue.clone()
+          heldValue.analyzeHeapSnapshot(nodeInfos).then(()=>{
+            if(this.autoClear){
+              cloneCache.forEach((cloneItem)=>{
+                heldValue.cacheValue.remove(cloneItem)
+              })
+            }
+            heldValue.isAnalyzing = false
+          })
+        }else{
+          heldValue.isAnalyzing = false
         }
       });
       registry.register(gcSource, this)
     }
   }
-  analyzeHeapSnapshot:(objects:NodeInfo[])=>void
+  analyzeHeapSnapshot:(objects:NodeInfo[])=>Promise<void>
 }
 
 export const objWatch = new ObjWatch()

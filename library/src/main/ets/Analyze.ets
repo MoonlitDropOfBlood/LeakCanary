@@ -9,7 +9,7 @@ import { LeakNotification } from "./LeakNotification"
 import { NodeInfo } from "./model/NodeInfo"
 
 
-export function analyze(objects: NodeInfo[]) {
+export function analyze(objects: NodeInfo[]):Promise<void> {
   const context = getContext().getApplicationContext()
   const time = systemDateTime.getTime()
   const file = time+"-泄漏"
@@ -19,7 +19,7 @@ export function analyze(objects: NodeInfo[]) {
     createTime:new Date(time),
     heapSnapshotPath:context.filesDir+'/'+file+'.heapsnapshot'
   }
-  appDatabase.analysisTaskDao.insert(taskInfo).then(()=>{
+  return appDatabase.analysisTaskDao.insert(taskInfo).then(()=>{
     try {
       hidebug.dumpJsHeapData(file)
     } catch (error) {
@@ -31,7 +31,7 @@ export function analyze(objects: NodeInfo[]) {
       return
     }
     let task = new taskpool.Task(analyzeHash,taskInfo.heapSnapshotPath,objects)
-    taskpool.execute(task,taskpool.Priority.HIGH).then((nodeRefs)=>{
+    return taskpool.execute(task,taskpool.Priority.HIGH).then((nodeRefs)=>{
       hilog.debug(0x0002, "Analyze","analyzeHash done")
       taskInfo.status = 2
       taskInfo.referencePaths = nodeRefs as Array<NodeRef>
@@ -63,20 +63,27 @@ function analyzeHash(file: string, objects: NodeInfo[]):Array<NodeRef> {
     }
     groupedObjects.get(obj.name)!.push(obj)
   }
-  const task = createTask(file)
-  const nodeRefs:Array<NodeRef> = []
-  groupedObjects.forEach((value:NodeInfo[],key:string)=>{
-    const objsRef = getShortestPathToGCRoot(task, key)
-    nodeRefs.push(...objsRef.map<NodeRef>((it,index:number)=>{
-      const node = value[index]
-      const nodeRef:NodeRef = {
-      hash:node?.hash ?? 0,
-      name:key,
-      ref:it
+  let task:number = -1
+  try {
+    task = createTask(file)
+    const nodeRefs: Array<NodeRef> = []
+    groupedObjects.forEach((value: NodeInfo[], key: string) => {
+      const objsRef = getShortestPathToGCRoot(task, key)
+      nodeRefs.push(...objsRef.map<NodeRef>((it, index: number) => {
+        const node = value[index]
+        const nodeRef: NodeRef = {
+          hash: node?.hash ?? 0,
+          name: key,
+          ref: it
+        }
+        return nodeRef
+      }))
+    })
+    return nodeRefs
+  } finally {
+    if(task != -1){
+      destroyTask(task)
     }
-    return nodeRef
-  }))
-  })
-  destroyTask(task)
-  return nodeRefs
+  }
+
 }
