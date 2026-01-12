@@ -1,5 +1,5 @@
 import { createTask,destroyTask,getShortestPathToGCRoot } from "libleakguard.so"
-import { taskpool, util } from "@kit.ArkTS"
+import { taskpool } from "@kit.ArkTS"
 import hilog from "@ohos.hilog"
 import { AnalysisTask, NodeRef } from "./db/DatabaseInterfaces"
 import { hidebug } from "@kit.PerformanceAnalysisKit"
@@ -55,29 +55,17 @@ export function analyze(objects: NodeInfo[]):Promise<void> {
 
 @Concurrent
 function analyzeHash(file: string, objects: NodeInfo[]):Array<NodeRef> {
-  // 按name字段对objects进行分组
-  const groupedObjects = new Map<string, NodeInfo[]>()
-  for (let obj of objects) {
-    if (!groupedObjects.has(obj.name)) {
-      groupedObjects.set(obj.name, [])
-    }
-    groupedObjects.get(obj.name)!.push(obj)
-  }
   let task:number = -1
   try {
     task = createTask(file)
     const nodeRefs: Array<NodeRef> = []
-    groupedObjects.forEach((value: NodeInfo[], key: string) => {
-      const objsRef = getShortestPathToGCRoot(task, key)
-      nodeRefs.push(...objsRef.map<NodeRef>((it, index: number) => {
-        const node = value[index]
-        const nodeRef: NodeRef = {
-          hash: node?.hash ?? 0,
-          name: key,
-          ref: it
-        }
-        return nodeRef
-      }))
+    objects.forEach((it)=>{
+      const ref = getShortestPathToGCRoot(task, `Int:${it.hash}`)
+        nodeRefs.push({
+          name:it.name,
+          hash:it.hash,
+          ref
+        })
     })
     return nodeRefs
   } finally {

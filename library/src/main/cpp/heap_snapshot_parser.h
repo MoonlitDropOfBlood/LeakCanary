@@ -94,13 +94,14 @@ public:
     
     bool parseSnapshot();
     std::vector<ReferenceChain> getShortestPathToGCRoot(int nodeId, int maxDepth = 5);
-    std::vector<std::vector<ReferenceChain>> getShortestPathToGCRootByName(const std::string& nodeName, int maxDepth = 5);
+    std::vector<ReferenceChain> getShortestPathToGCRootByName(const std::string& nodeName, int maxDepth = 5);
     
 private:
     void parseMetaAndData();
     void buildReferences();
     std::string getStringById(int id) const;
     void parseNodeNameAndPath(HeapNode& node, const std::string& originalName);
+    HeapNode* findHashNodeByName(const std::string& targetName);
     
     // 内部数据结构
     std::vector<int> nodesRaw;

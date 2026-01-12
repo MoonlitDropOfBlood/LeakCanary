@@ -32,4 +32,4 @@ export const createTask: (filePath: string) => number;
 export const destroyTask: (taskId: number) => boolean;
 
 // 获取到GC根的最短引用链
-export const getShortestPathToGCRoot: (taskId: number, name: string, maxDepth?: number) => ReferenceChain[][];
+export const getShortestPathToGCRoot: (taskId: number, name: string, maxDepth?: number) => ReferenceChain[];

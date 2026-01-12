@@ -521,31 +521,44 @@ std::vector<ReferenceChain> TaskHeapSnapshot::getShortestPathToGCRoot(int nodeId
     return shortestChain;
 }
 
-std::vector<std::vector<ReferenceChain>> TaskHeapSnapshot::getShortestPathToGCRootByName(const std::string& nodeName, int maxDepth) {
-    std::vector<std::vector<ReferenceChain>> resultChains;
+HeapNode* TaskHeapSnapshot::findHashNodeByName(const std::string& targetName) {
+    auto it = std::find_if(nodes.begin(), nodes.end(),
+        [&targetName](const HeapNode& node) {
+            return node.name == targetName && node.type == "number";
+        });
+    
+    if (it != nodes.end()) {
+        // 获取该节点的引用列表
+        const std::vector<Reference>& refs = it->references;
+        
+        // 在引用列表中查找 name_or_index 为 "ArkInternalHash" 的引用
+        auto refIt = std::find_if(refs.begin(), refs.end(),
+            [](const Reference& ref) {
+                return ref.name_or_index == "ArkInternalHash";
+            });
+        
+        if (refIt != refs.end()) {
+            // 找到目标引用，返回引用指向的节点
+            int targetNodeIndex = refIt->from_node_index;
+            if (targetNodeIndex >= 0 && targetNodeIndex < static_cast<int>(nodes.size())) {
+                return &nodes[targetNodeIndex];
+            }
+        }
+    }
+    return nullptr;
+}
+
+std::vector<ReferenceChain> TaskHeapSnapshot::getShortestPathToGCRootByName(const std::string& nodeName, int maxDepth) {
     
     // 查找所有名称匹配的节点
-    std::vector<int> matchedNodeIds;
-    for (const auto& node : nodes) {
-        if (node.name.find(nodeName) != std::string::npos && node.type == "object") {
-            matchedNodeIds.push_back(node.id);
-        }
-    }
-    
-    if (matchedNodeIds.empty()) {
+    const HeapNode* node = findHashNodeByName(nodeName);
+  
+    if (node == nullptr) {
         std::cerr << "未找到名称包含 \"" << nodeName << "\" 的节点" << std::endl;
-        return resultChains;
+        return std::vector<ReferenceChain>();
     }
-    
-    // 对每个匹配的节点，获取其到GC根的最短路径
-    for (int nodeId : matchedNodeIds) {
-        std::vector<ReferenceChain> chain = getShortestPathToGCRoot(nodeId,maxDepth);
-        if (!chain.empty()) {  // 只添加非空路径
-            resultChains.push_back(chain);
-        }
-    }
-    
-    return resultChains;
+    std::vector<ReferenceChain> chain = getShortestPathToGCRoot(node->id,maxDepth);
+    return chain;
 }
 
 // 初始化TaskManager静态成员
