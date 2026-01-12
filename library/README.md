@@ -68,10 +68,11 @@ LeakGuard.registerComponent(component);
 
 ### ObjWatch
 
-| 方法名            | 入参                       | 接口描述       |
-|:---------------|:-------------------------|:-----------|
-| setSensitivity | sensitivity: Sensitivity | 设置灵敏度      |
-| registry       | obj: object              | 手动注册弃用对象监听 |
+| 方法名            | 入参                       | 接口描述         |
+|:---------------|:-------------------------|:-------------|
+| setSensitivity | sensitivity: Sensitivity | 设置灵敏度        |
+| registry       | obj: object              | 手动注册弃用对象监听   |
+| setAutoClear   | enabled: boolean         | 设置是否自动清除泄漏对象 |
 
 ### Sensitivity
 
