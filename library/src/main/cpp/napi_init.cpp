@@ -207,7 +207,7 @@ static napi_value GetShortestPathToGCRoot(napi_env env, napi_callback_info info)
         napi_set_named_property(env, chainObj, "to", currentNodeObj);
                 
         // 将链对象添加到链数组
-        napi_set_element(env, currentNodeObj, i, chainObj);
+        napi_set_element(env, result, i, chainObj);
         
     }
     

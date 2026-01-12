@@ -61,11 +61,13 @@ function analyzeHash(file: string, objects: NodeInfo[]):Array<NodeRef> {
     const nodeRefs: Array<NodeRef> = []
     objects.forEach((it)=>{
       const ref = getShortestPathToGCRoot(task, `Int:${it.hash}`)
+      if(ref.length > 0) {
         nodeRefs.push({
-          name:it.name,
-          hash:it.hash,
+          name: it.name,
+          hash: it.hash,
           ref
         })
+      }
     })
     return nodeRefs
   } finally {

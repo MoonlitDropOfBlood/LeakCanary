@@ -53,8 +53,7 @@ class ObjWatch {
       this.context = owner['getUIContext']().getHostContext().getApplicationContext()
     }
     this.cacheValue.add(new WeakRef(owner))
-    if (this.targetGC?.deref() == undefined && this.isAnalyzing == false) {
-      this.isAnalyzing = true
+    if (this.targetGC?.deref() == undefined) {
       let gcSource = new Object()
       this.targetGC = new WeakRef(gcSource)
       const registry = new FinalizationRegistry((heldValue: ObjWatch) => {
@@ -86,16 +85,17 @@ class ObjWatch {
           }))
           noGC.clear()// 清空noGC，防止后续分析中出现不必要的引用
           const cloneCache = heldValue.cacheValue.clone()
-          heldValue.analyzeHeapSnapshot(nodeInfos).then(()=>{
-            if(this.autoClear){
-              cloneCache.forEach((cloneItem)=>{
-                heldValue.cacheValue.remove(cloneItem)
-              })
-            }
-            heldValue.isAnalyzing = false
-          })
-        }else{
-          heldValue.isAnalyzing = false
+          if(heldValue.isAnalyzing == false) {
+            heldValue.isAnalyzing = true
+            heldValue.analyzeHeapSnapshot(nodeInfos).then(() => {
+              if (this.autoClear) {
+                cloneCache.forEach((cloneItem) => {
+                  heldValue.cacheValue.remove(cloneItem)
+                })
+              }
+              heldValue.isAnalyzing = false
+            })
+          }
         }
       });
       registry.register(gcSource, this)
