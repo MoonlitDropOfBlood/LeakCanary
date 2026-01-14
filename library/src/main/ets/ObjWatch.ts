@@ -2,7 +2,7 @@ import { HashSet, LinkedList, util } from '@kit.ArkTS'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { LeakNotification } from './LeakNotification'
 import { common } from '@kit.AbilityKit'
-import { NodeInfo } from './model/NodeInfo'
+import { systemDateTime } from '@kit.BasicServicesKit'
 
 export enum Sensitivity{
   /**
@@ -32,6 +32,13 @@ class ObjWatch {
 
   private isAnalyzing:boolean = false
 
+  private lastAnalyzeTime:number = 0
+
+  /**
+   * 分析间隔
+   */
+  private interval:number = 30 * 1000
+
   /**
    * 设置灵敏度
    * @param sensitivity 灵敏度
@@ -46,6 +53,14 @@ class ObjWatch {
    */
   setAutoClear(autoClear:boolean){
     this.autoClear = autoClear
+  }
+
+  /**
+   * 设置分析间隔
+   * @param timer 分析间隔 单位秒
+   */
+  setAnalyzeInterval(interval:number){
+    this.interval = interval * 1000
   }
 
   registry(owner: object) {
@@ -79,29 +94,29 @@ class ObjWatch {
         if(noGC.length > 0) {
           hilog.error(0x0001,"GC","可能泄漏的对象为数为 " + noGC.length)
           LeakNotification.getInstance().publishNotification(`检测到${firstLeak}等${noGC.length}个组件泄漏`)
-          let nodeInfos = Array.from(noGC.values()).map(it=>({
-            hash:util.getHash(it),
-            name:it.constructor.name
-          }))
-          noGC.clear()// 清空noGC，防止后续分析中出现不必要的引用
-          const cloneCache = heldValue.cacheValue.clone()
           if(heldValue.isAnalyzing == false) {
-            heldValue.isAnalyzing = true
-            heldValue.analyzeHeapSnapshot(nodeInfos).then(() => {
-              if (this.autoClear) {
-                cloneCache.forEach((cloneItem) => {
-                  heldValue.cacheValue.remove(cloneItem)
-                })
-              }
-              heldValue.isAnalyzing = false
-            })
+            if(systemDateTime.getTime() - heldValue.lastAnalyzeTime >= heldValue.interval) {
+              heldValue.lastAnalyzeTime = systemDateTime.getTime()
+              const cloneCache = heldValue.cacheValue.clone()
+              heldValue.isAnalyzing = true
+              heldValue.analyzeHeapSnapshot(noGC).then(() => {
+                if (this.autoClear) {
+                  cloneCache.forEach((cloneItem) => {
+                    heldValue.cacheValue.remove(cloneItem)
+                  })
+                }
+                heldValue.isAnalyzing = false
+              })
+            }
+          }else{
+            noGC.clear()
           }
         }
       });
       registry.register(gcSource, this)
     }
   }
-  analyzeHeapSnapshot:(objects:NodeInfo[])=>Promise<void>
+  analyzeHeapSnapshot:(objects:HashSet<object>)=>Promise<void>
 }
 
 export const objWatch = new ObjWatch()
