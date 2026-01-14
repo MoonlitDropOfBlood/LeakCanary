@@ -33,3 +33,6 @@ export const destroyTask: (taskId: number) => boolean;
 
 // 获取到GC根的最短引用链
 export const getShortestPathToGCRoot: (taskId: number, name: string, maxDepth?: number) => ReferenceChain[];
+
+// 二进制转成快照文件
+export const rawHeapTranslate: (filePath: string, outFilePath:string) => void;

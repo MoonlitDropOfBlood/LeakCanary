@@ -2,7 +2,6 @@ import { HashSet, LinkedList, util } from '@kit.ArkTS'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { LeakNotification } from './LeakNotification'
 import { common } from '@kit.AbilityKit'
-import { NodeInfo } from './model/NodeInfo'
 
 export enum Sensitivity{
   /**
@@ -79,15 +78,10 @@ class ObjWatch {
         if(noGC.length > 0) {
           hilog.error(0x0001,"GC","可能泄漏的对象为数为 " + noGC.length)
           LeakNotification.getInstance().publishNotification(`检测到${firstLeak}等${noGC.length}个组件泄漏`)
-          let nodeInfos = Array.from(noGC.values()).map(it=>({
-            hash:util.getHash(it),
-            name:it.constructor.name
-          }))
-          noGC.clear()// 清空noGC，防止后续分析中出现不必要的引用
           const cloneCache = heldValue.cacheValue.clone()
           if(heldValue.isAnalyzing == false) {
             heldValue.isAnalyzing = true
-            heldValue.analyzeHeapSnapshot(nodeInfos).then(() => {
+            heldValue.analyzeHeapSnapshot(noGC).then(() => {
               if (this.autoClear) {
                 cloneCache.forEach((cloneItem) => {
                   heldValue.cacheValue.remove(cloneItem)
@@ -101,7 +95,7 @@ class ObjWatch {
       registry.register(gcSource, this)
     }
   }
-  analyzeHeapSnapshot:(objects:NodeInfo[])=>Promise<void>
+  analyzeHeapSnapshot:(objects:HashSet<object>)=>Promise<void>
 }
 
 export const objWatch = new ObjWatch()

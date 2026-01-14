@@ -4,6 +4,7 @@
 #include "napi/native_api.h"
 // 声明而非包含heap_snapshot_parser.cpp
 #include "heap_snapshot_parser.h"
+#include "rawheap_translate.h"
 
 // 实现NAPI接口
 
@@ -214,6 +215,55 @@ static napi_value GetShortestPathToGCRoot(napi_env env, napi_callback_info info)
     return result;
 }
 
+static napi_value rawHeapTranslate(napi_env env, napi_callback_info info) {
+       size_t argc = 2;
+    napi_value args[2] = { nullptr };
+    
+    // 获取参数
+    if (napi_get_cb_info(env, info, &argc, args, nullptr, nullptr) != napi_ok) {
+        return nullptr;
+    }
+    
+    if (argc < 2) {
+        napi_throw_error(env, nullptr, "需要一个参数: 文件路径");
+        return nullptr;
+    }
+    
+    // 解析入口文件路径参数
+    size_t inFilePathLength = 0;
+    if (napi_get_value_string_utf8(env, args[0], nullptr, 0, &inFilePathLength) != napi_ok) {
+        return nullptr;
+    }
+    
+    char* inFilePathBuffer = new char[inFilePathLength + 1];
+    if (napi_get_value_string_utf8(env, args[0], inFilePathBuffer, inFilePathLength + 1, nullptr) != napi_ok) {
+        delete[] inFilePathBuffer;
+        return nullptr;
+    }
+    
+    std::string inFilePath(inFilePathBuffer);
+    delete[] inFilePathBuffer;
+
+    // 解析出口文件路径参数
+    size_t outFilePathLength = 0;
+    if (napi_get_value_string_utf8(env, args[1], nullptr, 0, &outFilePathLength) != napi_ok) {
+        return nullptr;
+    }
+    
+    char* outFilePathBuffer = new char[outFilePathLength + 1];
+    if (napi_get_value_string_utf8(env, args[1], outFilePathBuffer, outFilePathLength + 1, nullptr) != napi_ok) {
+        delete[] outFilePathBuffer;
+        return nullptr;
+    }
+    
+    std::string outFilePath(outFilePathBuffer);
+    delete[] outFilePathBuffer;
+
+    rawheap_translate::RawHeap::TranslateRawheap(inFilePath,outFilePath);
+
+    return nullptr;
+}
+
 
 
 EXTERN_C_START
@@ -222,7 +272,9 @@ static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
         {"createTask", nullptr, CreateTask, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"destroyTask", nullptr, DestroyTask, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"getShortestPathToGCRoot", nullptr, GetShortestPathToGCRoot, nullptr, nullptr, nullptr, napi_default, nullptr}};
+        {"getShortestPathToGCRoot", nullptr, GetShortestPathToGCRoot, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"rawHeapTranslate", nullptr, rawHeapTranslate, nullptr, nullptr, nullptr, napi_default, nullptr}
+    };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;
 }
