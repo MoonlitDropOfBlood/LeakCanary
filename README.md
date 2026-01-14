@@ -2,7 +2,7 @@
 
 ## 简介
 
-[![openHarmony](https://img.shields.io/badge/openharmony-v2.3.0-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v2.3.0)
+[![openHarmony](https://img.shields.io/badge/openharmony-v2.3.1-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v2.3.1)
 
 LeakGuard是一个为OpenHarmony开发的内存泄漏检测库，提供自动化的内存泄漏监控和检测功能。
 
@@ -68,11 +68,14 @@ LeakGuard.registerComponent(component);
 
 ### ObjWatch
 
-| 方法名            | 入参                       | 接口描述         |
-|:---------------|:-------------------------|:-------------|
-| setSensitivity | sensitivity: Sensitivity | 设置灵敏度        |
-| registry       | obj: object              | 手动注册弃用对象监听   |
-| setAutoClear   | enabled: boolean         | 设置是否自动清除泄漏对象 |
+| 方法名                | 入参                       | 接口描述              |
+|:-------------------|:-------------------------|:------------------|
+| setSensitivity     | sensitivity: Sensitivity | 设置灵敏度             |
+| registry           | obj: object              | 手动注册弃用对象监听        |
+| setAutoClear       | enabled: boolean         | 设置是否自动清除泄漏对象      |
+| setAnalyzeInterval | interval: number         | 设置分析间隔，单位秒，默认值为30 |
+
+
 
 ### Sensitivity
 
