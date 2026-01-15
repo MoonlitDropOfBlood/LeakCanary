@@ -99,6 +99,9 @@ class ObjWatch {
               heldValue.lastAnalyzeTime = systemDateTime.getTime()
               const cloneCache = heldValue.cacheValue.clone()
               heldValue.isAnalyzing = true
+              noGC.forEach((it) => {// 清除已分析对象的GC计数，降低dump压力，避免重复分析
+                heldValue.cacheGCCount.delete(it)
+              })
               heldValue.analyzeHeapSnapshot(noGC).then(() => {
                 if (this.autoClear) {
                   cloneCache.forEach((cloneItem) => {
