@@ -2,7 +2,7 @@
 
 ## 简介
 
-[![openHarmony](https://img.shields.io/badge/openharmony-v2.3.1-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v2.3.1)
+[![openHarmony](https://img.shields.io/badge/openharmony-v2.3.2-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v2.3.2)
 
 LeakGuard是一个为OpenHarmony开发的内存泄漏检测库，提供自动化的内存泄漏监控和检测功能。
 
