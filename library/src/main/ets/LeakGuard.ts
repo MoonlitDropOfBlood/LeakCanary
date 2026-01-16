@@ -25,6 +25,7 @@ export class LeakGuard {
   /**
    * 设置是否开启系统监听
    * @param enabledSysWatch 是否开启系统监听
+   * @api
    */
   static setEnabledSysWatch(enabledSysWatch: boolean) {
     LeakGuard.enabledSysWatch = enabledSysWatch
@@ -47,6 +48,7 @@ export class LeakGuard {
    * 初始化全局自定义组件监听
    * 全新的监听方式
    * @since 20
+   * @api
    */
   static initRegisterGlobalWatch(context: common.UIAbilityContext){
     if(deviceInfo.sdkApiVersion < 20){
@@ -80,6 +82,7 @@ export class LeakGuard {
   /**
    * 监听对象
    * @param obj
+   * @api
    */
   static watchObj(obj:object){
     if(LeakGuard.enabledSysWatch){
@@ -104,6 +107,7 @@ export class LeakGuard {
   /**
    * 设置分析间隔
    * @param timer 分析间隔 单位秒
+   * @api
    */
   static setAnalyzeInterval(interval:number){
     LeakGuard.interval = interval * 1000
@@ -112,6 +116,7 @@ export class LeakGuard {
   /**
    * 获取分析间隔
    * @returns 分析间隔 单位秒
+   * @api
    */
   static getAnalyzeInterval():number{
     return LeakGuard.interval
@@ -121,6 +126,7 @@ export class LeakGuard {
    * 注册根页面组件监听
    * @param rootComponent
    * @since 12
+   * @api
    */
   static registerRootWatch(rootComponent: object) {
     LeakGuard.registerComponent(rootComponent)
@@ -156,6 +162,7 @@ export class LeakGuard {
    * 注册单个组件监听
    * @param component 自定义组件
    * @since 12
+   * @api
    */
   static registerComponent(component: object){
     let uniqueId: number = component['getUniqueId']();

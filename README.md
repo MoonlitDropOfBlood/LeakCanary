@@ -2,7 +2,7 @@
 
 ## 简介
 
-[![openHarmony](https://img.shields.io/badge/openharmony-v2.3.2-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v2.3.2)
+[![openHarmony](https://img.shields.io/badge/openharmony-v3.0.0-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v3.0.0)
 
 LeakGuard是一个为OpenHarmony开发的内存泄漏检测库，提供自动化的内存泄漏监控和检测功能。
 
@@ -11,6 +11,7 @@ LeakGuard是一个为OpenHarmony开发的内存泄漏检测库，提供自动化
 - 基于Navigation的页面，实时监控页面及其子组件的内存状态
 - 内存泄漏发送时会在Log中打印一条Tag为GC的error level log
 - 新增快照功能，在发生泄漏时，会自动生成快照文件并进行分析
+- 新增系统API泄漏监控功能
 
 ## 下载安装
 
@@ -60,30 +61,15 @@ LeakGuard.registerComponent(component);
 
 ### LeakGuard
 
-| 方法名                     | 入参                    | 接口描述                         |
-|:------------------------|:----------------------|:-----------------------------|
-| initRegisterGlobalWatch | -                     | 全局初始化内存泄漏监控，自动监听所有自定义组件      |
-| registerRootWatch       | rootComponent: object | 注册Navigation根组件进行内存泄漏监控（已弃用） |
-| registerComponent       | component: object     | 手动注册监听，不用考虑时机（已弃用）           |
-
-### ObjWatch
-
-| 方法名                | 入参                       | 接口描述              |
-|:-------------------|:-------------------------|:------------------|
-| setSensitivity     | sensitivity: Sensitivity | 设置灵敏度             |
-| registry           | obj: object              | 手动注册弃用对象监听        |
-| setAutoClear       | enabled: boolean         | 设置是否自动清除泄漏对象      |
-| setAnalyzeInterval | interval: number         | 设置分析间隔，单位秒，默认值为30 |
-
-
-
-### Sensitivity
-
-| 枚举     | 说明                                  |
-|:-------|:------------------------------------|
-| HEIGHT | 高灵敏度<br/>容易产生误报，但是能够及时发现短时内存泄漏      |
-| LOW    | 低灵敏度<br/>基本不会产生误报，但是触发时间比较久<br/>默认值 |
-
+| 方法名                     | 入参                       | 接口描述                         |
+|:------------------------|:-------------------------|:-----------------------------|
+| initRegisterGlobalWatch | -                        | 全局初始化内存泄漏监控，自动监听所有自定义组件      |
+| registerRootWatch       | rootComponent: object    | 注册Navigation根组件进行内存泄漏监控（已弃用） |
+| registerComponent       | component: object        | 手动注册监听，不用考虑时机（已弃用）           |
+| setAutoClear            | enabled: boolean         | 设置是否自动清除泄漏对象(默认关闭)           |
+| setAnalyzeInterval      | interval: number         | 设置分析间隔，单位秒，默认值为30            |
+| watchObj                | obj: object              | 手动注册弃用对象监听                   |
+| enableSystemWatch       | enabledSysWatch: boolean | 设置是否开启系统API监听（默认开启）          |
 
 ### 工作原理
 
@@ -93,8 +79,7 @@ LeakGuard通过以下方式实现内存泄漏检测：
 2. 通过 `FinalizationRegistry` 监听对象被GC的时机
 3. 集成OpenHarmony的UI观察者系统，监听导航状态变化
 4. 在页面即将消失时自动注册该页面的所有子组件进行监控
-
-
+5. 新增系统级监控功能，实现更全面的泄漏检测
 
 ## 约束与限制
 
@@ -125,7 +110,8 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 
 未完成：
 
-无
+* [未完成] window 泄漏监听
+* [未完成] Ability 泄漏监听
 
 ## 目录结构
 
