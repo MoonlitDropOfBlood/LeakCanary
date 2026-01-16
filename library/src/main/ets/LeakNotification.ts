@@ -1,7 +1,8 @@
 import { notificationManager } from "@kit.NotificationKit"
 import { AbilityLifecycleCallback, common, UIAbility, WantAgent, wantAgent } from "@kit.AbilityKit"
-import { router, window } from "@kit.ArkUI"
+import { Size, window } from "@kit.ArkUI"
 import { LEAK_START_URI, LEAK_TASK_ROUTE_NAME } from "./Constants"
+import { Callback } from "@kit.BasicServicesKit"
 
 export class LeakNotification {
   //单例
@@ -48,12 +49,6 @@ export class LeakNotification {
     onAbilityCreate(ability: UIAbility) {
     },
     onWindowStageCreate(ability: UIAbility, windowStage: window.WindowStage) {
-      if(ability.launchWant.parameters?.['route'] == LEAK_START_URI){
-        setTimeout(()=>{
-          router.pushNamedRoute({name:LEAK_TASK_ROUTE_NAME})
-        },1000)
-        return
-      }
     },
     onWindowStageActive(ability: UIAbility, windowStage: window.WindowStage) {
     },
@@ -72,7 +67,9 @@ export class LeakNotification {
     },
     onNewWant(ability: UIAbility) {
       if(ability.lastRequestWant.parameters?.['route'] == LEAK_START_URI){
-        router.pushNamedRoute({name:LEAK_TASK_ROUTE_NAME})
+        ability.context.windowStage.getMainWindow().then((win)=>{
+          win.getUIContext().getRouter().pushNamedRoute({name:LEAK_TASK_ROUTE_NAME})
+        })
         return
       }
     },
@@ -81,7 +78,19 @@ export class LeakNotification {
     onAbilityWillCreate(ability: UIAbility) {
     },
     onWindowStageWillCreate(ability: UIAbility, windowStage: window.WindowStage) {
-    },
+      if(ability.launchWant.parameters?.['route'] == LEAK_START_URI){
+
+        windowStage.getMainWindow().then((win)=>{
+          let onFirstPageUpdate: Callback<Size> = (event)=>{
+              win.off('windowSizeChange',onFirstPageUpdate)
+              setTimeout(()=>{
+                win.getUIContext().getRouter().pushNamedRoute({name:LEAK_TASK_ROUTE_NAME})
+              },1000)
+          }
+          win.on('windowSizeChange',onFirstPageUpdate)
+        })
+      }
+      },
     onWindowStageWillDestroy(ability: UIAbility, windowStage: window.WindowStage) {
     },
     onAbilityWillDestroy(ability: UIAbility) {
