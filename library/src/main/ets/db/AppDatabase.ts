@@ -5,8 +5,9 @@ import { analysisTaskTable } from "./DatabaseInterfaces"
 
 class AppDatabase extends Database {
   readonly analysisTaskDao = DatabaseDao.form(this).select(analysisTaskTable)
-
+  context:Context
   protected initDb(context: Context) {
+    this.context = context
     return relationalStore.getRdbStore(context, { name: 'app.db', securityLevel: relationalStore.SecurityLevel.S1 })
   }
 

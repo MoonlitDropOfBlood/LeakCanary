@@ -504,7 +504,7 @@ std::vector<ReferenceChain> TaskHeapSnapshot::getShortestPathToGCRoot(int nodeId
                 continue;
             }
             // 跳过弱引用
-            if (ref.type == "weak") {
+            if (ref.type == "weak"  && currentPath.empty()) {
                 continue;
             }
                 

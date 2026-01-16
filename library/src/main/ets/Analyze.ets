@@ -1,59 +1,35 @@
 import { createTask,destroyTask,getShortestPathToGCRoot, ReferenceChain } from "libleakguard.so"
-import { collections, HashSet, taskpool, util } from "@kit.ArkTS"
+import { collections, taskpool, uri } from "@kit.ArkTS"
 import hilog from "@ohos.hilog"
-import { AnalysisTask, NodeRef } from "./db/DatabaseInterfaces"
-import { hidebug } from "@kit.PerformanceAnalysisKit"
-import { systemDateTime } from "@kit.BasicServicesKit"
+import { NodeRef } from "./db/DatabaseInterfaces"
 import { appDatabase } from "./db/AppDatabase"
 import { LeakNotification } from "./LeakNotification"
 import { NodeInfo, TransferData } from "./model/TransferData"
 import { NodeRefShare, ReferenceChainNodeShare, ReferenceChainShare, ResultData } from "./model/ResultData"
+import { CheckTask } from "./model/CheckTask"
 
 
-export function analyze(objects: HashSet<object>):Promise<void> {
-  const context = getContext().getApplicationContext()
-  const time = systemDateTime.getTime()
-  const file = time+"-泄漏"
-  let taskInfo:AnalysisTask = {
-    isViewed:false,
-    status:1,
-    createTime:new Date(time),
-    heapSnapshotPath:context.filesDir+'/'+file+'.heapsnapshot'
-  }
-  const array = new collections.Array<NodeInfo>()
-  objects.forEach((it:object)=>{
-    array.push(new NodeInfo(it.constructor.name,util.getHash(it)))
-  })
-  objects.clear() // 防止 GC 出现意外的引用
-  return appDatabase.analysisTaskDao.insert(taskInfo).then(()=>{
-    try {
-      hidebug.dumpJsHeapData(file)
-    } catch (error) {
-      taskInfo.status = 3
-      appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
-        hilog.error(0x0002, "Analyze", "update taskInfo error")
-      })
-      LeakNotification.getInstance().publishNotification(file+" 分析失败")
-      return
-    }
-    let task = new taskpool.Task(analyzeHash,new TransferData(array,taskInfo.heapSnapshotPath))
-    return taskpool.execute(task,taskpool.Priority.HIGH).then((nodeRefs)=>{
-      hilog.debug(0x0002, "Analyze","analyzeHash done")
-      taskInfo.status = 2
-      taskInfo.referencePaths = shareToObject(nodeRefs as ResultData)
-      taskInfo.completeTime = new Date()
-      appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
-        hilog.error(0x0002, "Analyze", "update taskInfo error")
-      })
-      LeakNotification.getInstance().publishNotification(file+" 分析成功")
-    }).catch(() => {
-      hilog.error(0x0002, "Analyze", "analyzeHash error")
-      taskInfo.status = 3
-      appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
-        hilog.error(0x0002, "Analyze", "update taskInfo error")
-      })
-      LeakNotification.getInstance().publishNotification(file+" 分析失败")
+export function analyze(checkTask:CheckTask):Promise<void> {
+  const taskInfo = checkTask.task
+  const fileUri = new uri.URI(taskInfo.heapSnapshotPath)
+  const file = fileUri.getLastSegment().replace('.heapsnapshot','')
+  const task = new taskpool.Task(analyzeHash,new TransferData(collections.Array.from(checkTask.objInfos.map(it=>new NodeInfo(it.name,it.hash))),taskInfo.heapSnapshotPath))
+  return taskpool.execute(task,taskpool.Priority.HIGH).then((nodeRefs)=>{
+    hilog.debug(0x0002, "Analyze","analyzeHash done")
+    taskInfo.status = 2
+    taskInfo.referencePaths = shareToObject(nodeRefs as ResultData)
+    taskInfo.completeTime = new Date()
+    appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
+      hilog.error(0x0002, "Analyze", "update taskInfo error")
     })
+    LeakNotification.getInstance().publishNotification(file+" 分析成功")
+  }).catch(() => {
+    hilog.error(0x0002, "Analyze", "analyzeHash error")
+    taskInfo.status = 3
+    appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
+      hilog.error(0x0002, "Analyze", "update taskInfo error")
+    })
+    LeakNotification.getInstance().publishNotification(file+" 分析失败")
   })
 }
 
