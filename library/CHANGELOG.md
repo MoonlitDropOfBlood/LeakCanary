@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.0.1] 2026.01
+
+- 新增: 新增Ability 泄漏监听
+- 新增: 新增WindowStage 泄漏监听
+
 ## [3.0.0] 2026.01
 
 - 重构: 移除 objWatch.setAutoClear 调用，统一使用 LeakGuard.setAutoClear

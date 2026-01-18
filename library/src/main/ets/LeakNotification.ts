@@ -3,6 +3,7 @@ import { AbilityLifecycleCallback, common, UIAbility, WantAgent, wantAgent } fro
 import { Size, window } from "@kit.ArkUI"
 import { LEAK_START_URI, LEAK_TASK_ROUTE_NAME } from "./Constants"
 import { Callback } from "@kit.BasicServicesKit"
+import { LeakGuard } from "./LeakGuard"
 
 export class LeakNotification {
   //单例
@@ -92,8 +93,10 @@ export class LeakNotification {
       }
       },
     onWindowStageWillDestroy(ability: UIAbility, windowStage: window.WindowStage) {
-    },
+      LeakGuard.watchObj(windowStage)
+      },
     onAbilityWillDestroy(ability: UIAbility) {
+      LeakGuard.watchObj(ability)
     },
     onAbilityWillForeground(ability: UIAbility) {
     },

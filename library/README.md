@@ -2,7 +2,7 @@
 
 ## 简介
 
-[![openHarmony](https://img.shields.io/badge/openharmony-v3.0.0-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v3.0.0)
+[![openHarmony](https://img.shields.io/badge/openharmony-v3.0.1-brightgreen)](https://gitee.com/Duke_Bit/leak-canary/releases/tag/v3.0.1)
 
 LeakGuard是一个为OpenHarmony开发的内存泄漏检测库，提供自动化的内存泄漏监控和检测功能。
 
@@ -101,6 +101,7 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 * [已完成] 新增快照功能，在发生泄漏时，会自动生成快照文件并进行分析
 * [已完成] 添加数据库，存储泄漏信息，提供查询功能
 * [已完成] 添加内存泄漏检测报告页面，分近期和全部
+* [已完成] Ability 泄漏监听
 
 受限：API 20以上支持全局自动监听所有自定义组件
 * [已完成] ❗全局自动监听所有自定义组件
@@ -111,7 +112,6 @@ DevEco Studio: 6.0.0, SDK: HarmonyOS 6.0.0.120 Release Ohos_sdk_public 6.0.0.47 
 未完成：
 
 * [未完成] window 泄漏监听
-* [未完成] Ability 泄漏监听
 
 ## 目录结构
 
