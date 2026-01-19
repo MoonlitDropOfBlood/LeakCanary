@@ -1,6 +1,6 @@
 [submodule "rapidjson"]
 	path = rapidjson
-	url = https://github.com/Tencent/rapidjson.git
+	url = https://github.com/MoonlitDropOfBlood/rapidjson.git
 
 [submodule "libboundscheck"]
 	path = libboundscheck

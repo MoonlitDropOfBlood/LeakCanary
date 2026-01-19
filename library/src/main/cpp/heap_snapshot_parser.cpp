@@ -67,17 +67,27 @@ void TaskHeapSnapshot::parseNodeNameAndPath(HeapNode& node, const std::string& o
         node.path = originalName.substr(0, hashPos);
         
         std::string namePart = originalName.substr(hashPos + 1);
-        std::regex nameRegex(R"((.*)\(line:(.*)\)(.*))");
-        std::smatch match;
         
-        if (std::regex_search(namePart, match, nameRegex)) {
-            node.name = match[1];
-            try {
-                node.line = std::stoi(match[2]);
-            } catch (...) {
-                node.line = 0;
+        // 查找 "(line:" 和 ")" 的位置
+        size_t lineStart = namePart.find("(line:");
+        if (lineStart != std::string::npos) {
+            size_t lineEnd = namePart.find(")", lineStart);
+            if (lineEnd != std::string::npos) {
+                node.name = namePart.substr(0, lineStart);
+                
+                // 提取行号部分并转换
+                std::string lineStr = namePart.substr(lineStart + 6, lineEnd - lineStart - 6); // 6 是 "(line:" 的长度
+                try {
+                    node.line = std::stoi(lineStr);
+                } catch (...) {
+                    node.line = 0;
+                }
+                
+                // 提取模块部分
+                node.module = namePart.substr(lineEnd + 1);
+            } else {
+                node.name = namePart;
             }
-            node.module = match[3];
         } else {
             node.name = namePart;
         }
@@ -494,7 +504,7 @@ std::vector<ReferenceChain> TaskHeapSnapshot::getShortestPathToGCRoot(int nodeId
                 continue;
             }
             // 跳过弱引用
-            if (referrer.type == "weak") {
+            if (ref.type == "weak"  && currentPath.empty()) {
                 continue;
             }
                 

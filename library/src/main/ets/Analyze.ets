@@ -1,74 +1,95 @@
-import { createTask,destroyTask,getShortestPathToGCRoot, rawHeapTranslate } from "libleakguard.so"
-import { HashSet, taskpool, util } from "@kit.ArkTS"
+import { createTask,destroyTask,getShortestPathToGCRoot, ReferenceChain } from "libleakguard.so"
+import { collections, taskpool, uri } from "@kit.ArkTS"
 import hilog from "@ohos.hilog"
-import { AnalysisTask, NodeRef } from "./db/DatabaseInterfaces"
-import { hidebug } from "@kit.PerformanceAnalysisKit"
-import { systemDateTime } from "@kit.BasicServicesKit"
+import { NodeRef } from "./db/DatabaseInterfaces"
 import { appDatabase } from "./db/AppDatabase"
 import { LeakNotification } from "./LeakNotification"
-import { NodeInfo } from "./model/NodeInfo"
-import { NodeTransfer } from "./model/NodeTransfer"
+import { NodeInfo, TransferData } from "./model/TransferData"
+import { NodeRefShare, ReferenceChainNodeShare, ReferenceChainShare, ResultData } from "./model/ResultData"
+import { CheckTask } from "./model/CheckTask"
 
 
-export function analyze(objects: HashSet<object>):Promise<void> {
-  const context = getContext().getApplicationContext()
-  const time = systemDateTime.getTime()
-  const file = time+"-泄漏"
-  let taskInfo:AnalysisTask = {
-    isViewed:false,
-    status:1,
-    createTime:new Date(time),
-    heapSnapshotPath:context.filesDir+'/'+file+'.heapsnapshot'
-  }
-  const analyzeTarget = Array.from(objects.values()).map(it => new NodeInfo(it))
-  return appDatabase.analysisTaskDao.insert(taskInfo).then(()=>{
-      return hidebug.dumpJsRawHeapData(false)
-    }).then((path:string)=>{
-    let task = new taskpool.Task(analyzeHash,path,taskInfo.heapSnapshotPath,analyzeTarget.map(it=>{
-      const nodeTransfer:NodeTransfer = {hash:it.hash,name:it.name}
-      return nodeTransfer
-    }))
-    return taskpool.execute(task,taskpool.Priority.HIGH)
-  }).then((nodeRefs)=>{
+export function analyze(checkTask:CheckTask):Promise<void> {
+  const taskInfo = checkTask.task
+  const fileUri = new uri.URI(taskInfo.heapSnapshotPath)
+  const file = fileUri.getLastSegment().replace('.heapsnapshot','')
+  const task = new taskpool.Task(analyzeHash,new TransferData(collections.Array.from(checkTask.objInfos.map(it=>new NodeInfo(it.name,it.hash))),taskInfo.heapSnapshotPath))
+  return taskpool.execute(task,taskpool.Priority.HIGH).then((nodeRefs)=>{
     hilog.debug(0x0002, "Analyze","analyzeHash done")
     taskInfo.status = 2
-    taskInfo.referencePaths = nodeRefs as Array<NodeRef>
+    taskInfo.referencePaths = shareToObject(nodeRefs as ResultData)
     taskInfo.completeTime = new Date()
     appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
       hilog.error(0x0002, "Analyze", "update taskInfo error")
     })
     LeakNotification.getInstance().publishNotification(file+" 分析成功")
-  })
-    .catch((error:Error) => {
-      hilog.error(0x0002, "Analyze", "analyzeHash error"+error)
+  }).catch(() => {
+    hilog.error(0x0002, "Analyze", "analyzeHash error")
     taskInfo.status = 3
     appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
       hilog.error(0x0002, "Analyze", "update taskInfo error")
     })
     LeakNotification.getInstance().publishNotification(file+" 分析失败")
   })
+}
 
-
+/**
+ * 跨线程对象转成普通对象
+ * @param result
+ * @returns
+ */
+function shareToObject(result: ResultData):NodeRef[] {
+  const nodes:NodeRef[] = []
+  result.nodeRefs.forEach((ite:NodeRefShare)=>{
+    const refs:ReferenceChain[] = []
+    ite.ref.forEach((item=>{
+      refs.push({
+        from: {
+          nodeId:item.from.nodeId,
+          name:item.from.name,
+          type:item.from.type,
+          path:item.from.path,
+          line:item.from.line,
+        },
+        edgeType:item.edgeType,
+        to:{
+          nodeId:item.to.nodeId,
+          name:item.to.name,
+          type:item.to.type,
+          path:item.to.path,
+          line:item.to.line,
+        }
+      })
+    }))
+    nodes.push({
+      hash:ite.hash,
+      name:ite.name,
+      ref:refs
+    })
+  })
+  return nodes
 }
 
 @Concurrent
-function analyzeHash(rawFile:string, file: string, objects: NodeTransfer[]):Array<NodeRef> {
+function analyzeHash(transfer: TransferData):ResultData {
   let task:number = -1
   try {
-    rawHeapTranslate(rawFile,file)
-    task = createTask(file)
-    const nodeRefs: Array<NodeRef> = []
-    objects.forEach((it)=>{
+    rawHeapTranslate(transfer.file,transfer.file)
+    task = createTask(transfer.file)
+    const nodeRefs: Array<NodeRefShare> = []
+    transfer.nodeInfos.forEach((it)=>{
       const ref = getShortestPathToGCRoot(task, `Int:${it.hash}`)
       if(ref.length > 0) {
-        nodeRefs.push({
-          name: it.name,
-          hash: it.hash,
-          ref
-        })
+        const refs = new collections.Array<ReferenceChainShare>()
+        ref.forEach(item => refs.push(new ReferenceChainShare(
+          new ReferenceChainNodeShare(item.from.nodeId, item.from.name, item.from.type, item.from.path, item.from.line),
+          item.edgeType,
+          new ReferenceChainNodeShare(item.to.nodeId, item.to.name, item.to.type, item.to.path, item.to.line)
+        )))
+        nodeRefs.push(new NodeRefShare(it.hash, it.name, refs))
       }
     })
-    return nodeRefs
+    return new ResultData(collections.Array.from(nodeRefs))
   } finally {
     if(task != -1){
       destroyTask(task)

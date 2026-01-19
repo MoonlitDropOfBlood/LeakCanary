@@ -1,21 +1,13 @@
 import { HashSet, LinkedList, util } from '@kit.ArkTS'
-import { hilog } from '@kit.PerformanceAnalysisKit'
+import { hidebug, hilog } from '@kit.PerformanceAnalysisKit'
 import { LeakNotification } from './LeakNotification'
 import { common } from '@kit.AbilityKit'
-
-export enum Sensitivity{
-  /**
-   * 高灵敏度
-   * 容易产生误报，但是能够及时发现短时内存泄漏
-   */
-  HEIGHT = 1,
-  /**
-   * 低灵敏度
-   * 基本不会产生误报，但是触发时间比较久
-   * 默认值
-   */
-  LOW = 2
-}
+import { systemDateTime } from '@kit.BasicServicesKit'
+import { LeakGuard } from './LeakGuard'
+import { AnalysisTask } from './db/DatabaseInterfaces'
+import { appDatabase } from './db/AppDatabase'
+import { ObjInfo } from './model/ObjInfo'
+import { CheckTask } from './model/CheckTask'
 
 class ObjWatch {
   private cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
@@ -25,29 +17,18 @@ class ObjWatch {
 
   private context:common.ApplicationContext
 
-  private sensitivity = Sensitivity.LOW
-
-  private autoClear:boolean = false
+  private sensitivity = 2
 
   private isAnalyzing:boolean = false
 
-  /**
-   * 设置灵敏度
-   * @param sensitivity 灵敏度
-   */
-  setSensitivity(sensitivity:Sensitivity){
-    this.sensitivity = sensitivity
-  }
+  private lastAnalyzeTime:number = 0
 
-  /**
-   * 设置是否自动清除
-   * @param autoClear 是否自动清除
-   */
-  setAutoClear(autoClear:boolean){
-    this.autoClear = autoClear
-  }
+  private enabled:boolean = true
 
   registry(owner: object) {
+    if(!this.enabled){
+      return
+    }
     if(!this.context){
       this.context = owner['getUIContext']().getHostContext().getApplicationContext()
     }
@@ -78,24 +59,71 @@ class ObjWatch {
         if(noGC.length > 0) {
           hilog.error(0x0001,"GC","可能泄漏的对象为数为 " + noGC.length)
           LeakNotification.getInstance().publishNotification(`检测到${firstLeak}等${noGC.length}个组件泄漏`)
-          const cloneCache = heldValue.cacheValue.clone()
           if(heldValue.isAnalyzing == false) {
-            heldValue.isAnalyzing = true
-            heldValue.analyzeHeapSnapshot(noGC).then(() => {
-              if (this.autoClear) {
-                cloneCache.forEach((cloneItem) => {
-                  heldValue.cacheValue.remove(cloneItem)
+            if(systemDateTime.getTime() - heldValue.lastAnalyzeTime >= LeakGuard.getAnalyzeInterval()) {
+              heldValue.lastAnalyzeTime = systemDateTime.getTime()
+              const cloneCache = heldValue.cacheValue.clone()
+              heldValue.isAnalyzing = true
+              noGC.forEach((it) => {// 清除已分析对象的GC计数，降低dump压力，避免重复分析
+                heldValue.cacheGCCount.delete(it)
+              })
+              heldValue.dumpHeapSnapshot(noGC)
+                .then((task) => {
+                 return heldValue.analyzeHeapSnapshot(task)
+                }).then(()=>{
+                  if (LeakGuard.isAutoClear()) {
+                    cloneCache.forEach((cloneItem) => {
+                      heldValue.cacheValue.remove(cloneItem)
+                    })
+                  }
+                }).catch(()=>{
+                  heldValue.isAnalyzing = false
                 })
-              }
-              heldValue.isAnalyzing = false
-            })
+            }
+          }else{
+            noGC.clear()
           }
         }
       });
       registry.register(gcSource, this)
     }
   }
-  analyzeHeapSnapshot:(objects:HashSet<object>)=>Promise<void>
+
+  private dumpHeapSnapshot(objects:HashSet<object>):Promise<CheckTask>{
+    const time = systemDateTime.getTime()
+    const file = time+"-泄漏"
+    let taskInfo:AnalysisTask = {
+      isViewed:false,
+      status:1,
+      createTime:new Date(time),
+      heapSnapshotPath:appDatabase.context.filesDir+'/'+file+'.heapsnapshot'
+    }
+    const array :ObjInfo[] = []
+    objects.forEach((it:object)=>{
+      array.push({
+        hash:util.getHash(it),
+        name:it.constructor.name
+      })
+    })
+    objects.clear() // 防止 GC 出现意外的引用
+    return appDatabase.analysisTaskDao.insert(taskInfo).then(()=>{
+      hidebug.dumpJsHeapData(taskInfo.heapSnapshotPath)
+      return {
+        task:taskInfo,
+        objInfos:array
+      }
+    })
+  }
+
+  setEnabled(enabled: boolean) {
+    if(!enabled){
+      this.cacheValue.clear()
+      this.targetGC = undefined
+    }
+    this.enabled = enabled
+  }
+
+  analyzeHeapSnapshot:(task:CheckTask)=>Promise<void>
 }
 
 export const objWatch = new ObjWatch()
