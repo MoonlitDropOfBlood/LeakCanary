@@ -136,16 +136,19 @@ bool MetaParser::ParseTypeEnums(const rapidjson::Value &json)
     
     const rapidjson::Value &typeEnums = json["type_enum"];
     JSType type = 0;
-    auto visitor = [&type, this] (const rapidjson::Value &item) {
-        if (item.IsNumber()) {
-            const char* key = item.GetString();
-            MetaData *meta = FindOrCreateMetaData(key);
-            meta->nodeType = static_cast<NodeType>(item.GetInt());
-            meta->type = type++;
-            orderedMeta_.push_back(meta);
+    if (typeEnums.IsObject()) {  // 修改：检查对象类型而非数字类型
+        for (auto member = typeEnums.MemberBegin(); member != typeEnums.MemberEnd(); ++member) {
+            const char* key = member->name.GetString();
+            const rapidjson::Value& value = member->value;
+            
+            if (value.IsNumber()) {  // 检查值是否为数字
+                MetaData *meta = FindOrCreateMetaData(key);
+                meta->nodeType = static_cast<NodeType>(value.GetInt());
+                meta->type = type++;
+                orderedMeta_.push_back(meta);
+            }
         }
-    };
-    IterateJSONArray(typeEnums, visitor);
+    }
     LOG_INFO_ << "total JSType count " << orderedMeta_.size();
     return true;
 }
@@ -358,7 +361,7 @@ bool MetaParser::GetString(const rapidjson::Value &json, std::string &value)
 
 bool MetaParser::GetUInt32(const rapidjson::Value &json, const char *key, uint32_t &value)
 {
-    if (!json.HasMember(key) || !json[key].IsUint()) {
+    if (!json.HasMember(key) || !json[key].IsNumber()) {
         return false;
     }
     value = json[key].GetUint();
@@ -367,7 +370,7 @@ bool MetaParser::GetUInt32(const rapidjson::Value &json, const char *key, uint32
 
 bool MetaParser::GetUInt32(const rapidjson::Value &json, uint32_t &value)
 {
-    if (!json.IsUint()) {
+    if (!json.IsNumber()) {
         return false;
     }
     value = json.GetUint();
