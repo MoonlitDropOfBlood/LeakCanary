@@ -1,3 +1,7 @@
 [submodule "rapidjson"]
 	path = rapidjson
 	url = https://github.com/MoonlitDropOfBlood/rapidjson.git
+
+[submodule "libboundscheck"]
+	path = libboundscheck
+	url = https://atomgit.com/openeuler/libboundscheck.git

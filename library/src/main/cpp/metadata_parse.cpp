@@ -1,0 +1,379 @@
+/*
+ * Copyright (c) 2024 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "metadata_parse.h"
+
+namespace rawheap_translate {
+bool MetaParser::Parse(const rapidjson::Value &object)
+{
+    if (!ParseVersion(object) || !ParseTypeEnums(object) || !ParseTypeList(object) ||
+        !ParseTypeLayoutAndDesc(object)) {
+        return false;
+    }
+
+    GenerateMetaData();
+    SetBitField("HCLASS", "BitField", bitField_.objectTypeField);
+    SetBitField("JS_NATIVE_POINTER", "BindingSize", bitField_.nativePointerBindingSizeField);
+    SetBitField("TAGGED_ARRAY", "Length", bitField_.taggedArrayLengthField);
+    SetBitField("TAGGED_ARRAY", "Data", bitField_.taggedArrayDataField);
+    return true;
+}
+
+JSType MetaParser::GetJSTypeFromHClass(Node *hclass)
+{
+    JSType type = static_cast<JSType>(ByteToU32(hclass->data + bitField_.objectTypeField.offset));
+    if (type < orderedMeta_.size()) {
+        // lower 8-bits of 32-bit value means JSType
+        return type;
+    }
+    LOG_ERROR_ << "js type error, " << (int)type;
+    return 0;
+}
+
+JSType MetaParser::GetJSTypeFromTypeName(const std::string &name)
+{
+    MetaData *meta = GetMetaData(name);
+    if (meta == nullptr) {
+        return 0;  // 0: INVALID type
+    }
+    return meta->type;
+}
+
+NodeType MetaParser::GetNodeType(JSType type)
+{
+    MetaData *meta = GetMetaData(type);
+    if (meta == nullptr) {
+        return DEFAULT_NODETYPE;
+    }
+    return meta->nodeType;
+}
+
+uint32_t MetaParser::GetNativateSize(Node *node, JSType type)
+{
+    if (!IsNativePointer(type)) {
+        return 0;
+    }
+    return ByteToU32(node->data + bitField_.nativePointerBindingSizeField.offset);
+}
+
+std::string MetaParser::GetTypeName(JSType type)
+{
+    MetaData *meta = GetMetaData(type);
+    if (meta != nullptr) {
+        return meta->name;
+    }
+    return "UNKNOWN_TYPE";
+}
+
+MetaData* MetaParser::GetMetaData(const std::string &name)
+{
+    auto meta = meta_.find(name);
+    if (meta != meta_.end()) {
+        return meta->second;
+    }
+    return nullptr;
+}
+
+MetaData *MetaParser::GetMetaData(const JSType type)
+{
+    if (type < orderedMeta_.size()) {
+        return orderedMeta_[type];
+    }
+    return nullptr;
+}
+
+bool MetaParser::IsNativePointer(JSType type)
+{
+    return type == GetJSTypeFromTypeName("JS_NATIVE_POINTER");
+}
+
+bool MetaParser::IsString(JSType type)
+{
+    return typeRange_.stringFirst <= type && type <= typeRange_.stringLast;
+}
+
+bool MetaParser::IsDictionaryMode(JSType type)
+{
+    return type == GetJSTypeFromTypeName("TAGGED_DICTIONARY");
+}
+
+bool MetaParser::IsJSObject(JSType type)
+{
+    return typeRange_.objectFirst <= type && type <= typeRange_.objectLast;
+}
+
+bool MetaParser::IsGlobalEnv(JSType type)
+{
+    return type == GetJSTypeFromTypeName("GLOBAL_ENV");
+}
+
+bool MetaParser::IsArray(JSType type)
+{
+    MetaData *meta = GetMetaData(type);
+    if (meta != nullptr && meta->IsArray()) {
+        return true;
+    }
+    return false;
+}
+
+bool MetaParser::ParseTypeEnums(const rapidjson::Value &json)
+{
+    if (!json.HasMember("type_enum")) {
+        return false;
+    }
+    
+    const rapidjson::Value &typeEnums = json["type_enum"];
+    JSType type = 0;
+    if (typeEnums.IsObject()) {  // 修改：检查对象类型而非数字类型
+        for (auto member = typeEnums.MemberBegin(); member != typeEnums.MemberEnd(); ++member) {
+            const char* key = member->name.GetString();
+            const rapidjson::Value& value = member->value;
+            
+            if (value.IsNumber()) {  // 检查值是否为数字
+                MetaData *meta = FindOrCreateMetaData(key);
+                meta->nodeType = static_cast<NodeType>(value.GetInt());
+                meta->type = type++;
+                orderedMeta_.push_back(meta);
+            }
+        }
+    }
+    LOG_INFO_ << "total JSType count " << orderedMeta_.size();
+    return true;
+}
+
+bool MetaParser::ParseTypeList(const rapidjson::Value &json)
+{
+    const rapidjson::Value *metadatas {nullptr};
+    if (!GetArray(json, "type_list", &metadatas)) {
+        LOG_ERROR_ << "get type list item failed!";
+        return false;
+    }
+
+    auto metaVisitor = [this](const rapidjson::Value &item) {
+        std::string name;
+        GetString(item, "name", name);
+        MetaData *meta = FindOrCreateMetaData(name);
+        GetString(item, "visit_type", meta->visitType);
+        GetUInt32(item, "end_offset", meta->endOffset);
+
+        const rapidjson::Value *parents {nullptr};
+        const rapidjson::Value *offsets {nullptr};
+        if (GetArray(item, "parents", &parents) && GetArray(item, "offsets", &offsets)) {
+            ParseParents(*parents, meta);
+            ParseOffsets(*offsets, meta);
+        }
+    };
+
+    IterateJSONArray(*metadatas, metaVisitor);
+    LOG_INFO_ << "total metadata count " << meta_.size();
+    return true;
+}
+
+bool MetaParser::ParseTypeLayoutAndDesc(const rapidjson::Value &json)
+{
+    if (!json.HasMember("type_layout") || !json["type_layout"].IsObject()) {
+        return false;
+    }
+    
+    const rapidjson::Value &object = json["type_layout"];
+    if (!object.HasMember("Dictionary_layout") || !object["Dictionary_layout"].IsObject()) {
+        return false;
+    }
+    
+    const rapidjson::Value &dictLayout = object["Dictionary_layout"];
+    GetUInt32(dictLayout, "key_index", dictionaryLayout_.keyIndex);
+    GetUInt32(dictLayout, "value_index", dictionaryLayout_.valueIndex);
+    GetUInt32(dictLayout, "detail_index", dictionaryLayout_.detailIndex);
+    GetUInt32(dictLayout, "entry_size", dictionaryLayout_.entrySize);
+    GetUInt32(dictLayout, "header_size", dictionaryLayout_.headerSize);
+
+    if (!object.HasMember("Type_range") || !object["Type_range"].IsObject()) {
+        return false;
+    }
+    
+    const rapidjson::Value &typeRange = object["Type_range"];
+    std::string name;
+    GetString(typeRange, "string_first", name);
+    typeRange_.stringFirst = GetJSTypeFromTypeName(name);
+    GetString(typeRange, "string_last", name);
+    typeRange_.stringLast = GetJSTypeFromTypeName(name);
+    GetString(typeRange, "js_object_first", name);
+    typeRange_.objectFirst = GetJSTypeFromTypeName(name);
+    GetString(typeRange, "js_object_last", name);
+    typeRange_.objectLast = GetJSTypeFromTypeName(name);
+    return true;
+}
+
+bool MetaParser::ParseVersion(const rapidjson::Value &json)
+{
+    std::string versionId;
+    if (!GetString(json, "version", versionId)) {
+        LOG_ERROR_ << "version not found!";
+        return false;
+    }
+
+    if (!version_.Parse(versionId)) {
+        return false;
+    }
+
+    LOG_INFO_ << "current meta version is " << version_.ToString();
+    return true;
+}
+
+void MetaParser::ParseParents(const rapidjson::Value &array, MetaData *meta)
+{
+    if (!array.IsArray() || array.Size() <= 0) {
+        return;
+    }
+    
+    const rapidjson::Value &item = array[0];
+    if (item.IsString()) {
+        meta->parent = FindOrCreateMetaData(item.GetString());
+    }
+}
+
+void MetaParser::ParseOffsets(const rapidjson::Value &array, MetaData *meta)
+{
+    auto visitor = [&meta](const rapidjson::Value &item) {
+        Field field;
+        GetString(item, "name", field.name);
+        GetUInt32(item, "offset", field.offset);
+        GetUInt32(item, "size", field.size);
+        meta->fields.push_back(field);
+    };
+    IterateJSONArray(array, visitor);
+}
+
+void MetaParser::SetBitField(const std::string &metaName, const std::string &fieldName, Field &field)
+{
+    MetaData *meta = GetMetaData(metaName);
+    if (meta == nullptr) {
+        return;
+    }
+
+    for (const auto &field_ : meta->fields) {
+        if (field_.name == fieldName) {
+            field = field_;
+            break;
+        }
+    }
+
+    LOG_INFO_ << "set " << fieldName << " offset " << field.offset;
+}
+
+void MetaParser::FillMetaData(MetaData *parent, MetaData *meta)
+{
+    if (parent->parent != nullptr) {
+        FillMetaData(parent->parent, meta);
+    }
+    
+    for (const auto &field : parent->fields) {
+        meta->fields.push_back({field.name, field.offset + meta->endOffset, field.size});
+    }
+
+    meta->endOffset += parent->endOffset;
+
+    if (parent->IsArray()) {
+        meta->visitType = parent->visitType;
+    }
+}
+
+void MetaParser::GenerateMetaData()
+{
+    std::unordered_map<std::string, MetaData *> newMeta {};
+    for (auto &it : meta_) {
+        MetaData *meta = new MetaData();
+        newMeta.emplace(it.first, meta);
+        FillMetaData(it.second, meta);
+    }
+
+    for (auto &it : meta_) {
+        MetaData *meta = newMeta[it.first];
+        it.second->fields.swap(meta->fields);
+        it.second->visitType = meta->visitType;
+        it.second->endOffset = meta->endOffset;
+        delete meta;
+    }
+
+    newMeta.clear();
+}
+
+MetaData *MetaParser::FindOrCreateMetaData(const std::string &name)
+{
+    MetaData *meta = GetMetaData(name);
+    if (meta == nullptr) {
+        meta = new MetaData();
+        meta->name = name;
+        meta_[name] = meta;
+    }
+    return meta;
+}
+
+void MetaParser::IterateJSONArray(const rapidjson::Value &array, const std::function<void(const rapidjson::Value &)> &visitor)
+{
+    if (!array.IsArray()) {
+        return;
+    }
+    
+    for (rapidjson::SizeType i = 0; i < array.Size(); i++) {
+        visitor(array[i]);
+    }
+}
+
+bool MetaParser::GetArray(const rapidjson::Value &json, const char *key, const rapidjson::Value **value)
+{
+    if (!json.HasMember(key) || !json[key].IsArray()) {
+        return false;
+    }
+    *value = &json[key];
+    return true;
+}
+
+bool MetaParser::GetString(const rapidjson::Value &json, const char *key, std::string &value)
+{
+    if (!json.HasMember(key) || !json[key].IsString()) {
+        return false;
+    }
+    value = json[key].GetString();
+    return true;
+}
+
+bool MetaParser::GetString(const rapidjson::Value &json, std::string &value)
+{
+    if (!json.IsString()) {
+        return false;
+    }
+    value = json.GetString();
+    return true;
+}
+
+bool MetaParser::GetUInt32(const rapidjson::Value &json, const char *key, uint32_t &value)
+{
+    if (!json.HasMember(key) || !json[key].IsNumber()) {
+        return false;
+    }
+    value = json[key].GetUint();
+    return true;
+}
+
+bool MetaParser::GetUInt32(const rapidjson::Value &json, uint32_t &value)
+{
+    if (!json.IsNumber()) {
+        return false;
+    }
+    value = json.GetUint();
+    return true;
+}
+}  // namespace rawheap_translate

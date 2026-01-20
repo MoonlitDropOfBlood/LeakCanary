@@ -7,6 +7,24 @@ import { LeakNotification } from "./LeakNotification"
 import { appDatabase } from "./db/AppDatabase"
 import { common } from "@kit.AbilityKit"
 import { sysWatch } from "./SysWatch"
+import { autoWatch } from "./AutoWatch"
+
+export enum WatchLevel {
+
+  /**
+   * 基础监听
+   */
+  BASE = 0,
+  /**
+   * 开启系统监听
+   */
+  SYS = 1,
+  /**
+   * 开启API20及以上版本对象监听
+   */
+  API20 = 2,
+
+}
 
 export class LeakGuard {
 
@@ -20,32 +38,41 @@ export class LeakGuard {
 
   private static autoClear:boolean = false
 
-  private static enabledSysWatch: boolean = true
+  private static enabledWatchLevel: WatchLevel = WatchLevel.BASE
+
 
   /**
    * 设置是否开启系统监听
    * @param enabledSysWatch 是否开启系统监听
    * @api
    */
-  static setEnabledSysWatch(enabledSysWatch: boolean) {
-    LeakGuard.enabledSysWatch = enabledSysWatch
+  static setWatchLevel(enabledWatchLevel: WatchLevel) {
+    LeakGuard.enabledWatchLevel = enabledWatchLevel
   }
 
   static setEnabled(enabled: boolean) {
     if(!enabled){
       sysWatch.setEnabled(enabled)
       objWatch.setEnabled(enabled)
+      autoWatch.setEnabled(enabled)
     }else{
-      if(!LeakGuard.enabledSysWatch){
-        objWatch.setEnabled(enabled)
-      }else{
-        sysWatch.setEnabled(enabled)
+      switch (LeakGuard.enabledWatchLevel) {
+        case WatchLevel.BASE:
+          objWatch.setEnabled(enabled)
+          break
+        case WatchLevel.SYS:
+          sysWatch.setEnabled(enabled)
+          break
+        case WatchLevel.API20:
+          autoWatch.setEnabled(enabled)
+          break
       }
     }
   }
 
   /**
    * 初始化全局自定义组件监听
+   * 支持最新的自动监听方式
    * 全新的监听方式
    * @since 20
    * @api
@@ -60,6 +87,11 @@ export class LeakGuard {
       return
     }
     appDatabase.init(context)
+    LeakNotification.getInstance().initPublisher(context)
+    if(this.enabledWatchLevel == WatchLevel.API20){
+      autoWatch.setEnabled(true)
+      return
+    }
     try {
       let openHarmonyInternalApi = getOpenHarmonyInternalApi()
       openHarmonyInternalApi((owner:WeakRef<object>,msg:string)=>{
@@ -73,7 +105,6 @@ export class LeakGuard {
         }
       })
       LeakGuard.isInit = true
-      LeakNotification.getInstance().initPublisher(context)
     }catch (e) {
       hilog.error(0x0001, "LeakGuard", "initRegisterGlobalWatch error " + e)
     }
@@ -85,7 +116,7 @@ export class LeakGuard {
    * @api
    */
   static watchObj(obj:object){
-    if(LeakGuard.enabledSysWatch){
+    if(LeakGuard.enabledWatchLevel >= WatchLevel.SYS){
       sysWatch.registry(obj)
     }else {
       objWatch.registry(obj)
