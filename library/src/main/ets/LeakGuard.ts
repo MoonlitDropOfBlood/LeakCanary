@@ -38,7 +38,7 @@ export class LeakGuard {
 
   private static autoClear:boolean = false
 
-  private static enabledWatchLevel: WatchLevel = WatchLevel.BASE
+  private static enabledWatchLevel: WatchLevel = WatchLevel.API20
 
 
   /**
