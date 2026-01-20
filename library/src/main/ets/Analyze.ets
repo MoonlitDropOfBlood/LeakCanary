@@ -8,7 +8,6 @@ import { NodeInfo, TransferData } from "./model/TransferData"
 import { NodeRefShare, ReferenceChainNodeShare, ReferenceChainShare, ResultData } from "./model/ResultData"
 import { CheckTask } from "./model/CheckTask"
 import { fileIo } from "@kit.CoreFileKit"
-import { LeakInfo } from "./model/ObjInfo"
 
 
 export function analyze(checkTask:CheckTask):Promise<void> {
@@ -69,7 +68,7 @@ async function rawAnalyzeHash(transfer: TransferData):Promise<ResultData> {
     task = createTask(transfer.file)
     const nodeRefs: Array<NodeRefShare> = []
     transfer.nodeInfos.forEach((it)=>{
-      const ref = getShortestPathToGCRoot(task, `Int:${it.hash}`)
+      const ref = getShortestPathToGCRoot(task, `Int:${it.hash}`,10)
       if(ref.length > 0) {
         const refs = new collections.Array<ReferenceChainShare>()
         ref.forEach(item => refs.push(new ReferenceChainShare(
@@ -85,7 +84,7 @@ async function rawAnalyzeHash(transfer: TransferData):Promise<ResultData> {
     if(task != -1){
       destroyTask(task)
     }
-    // fileIo.unlinkSync(transfer.file)
+    fileIo.unlinkSync(transfer.file)
   }
 }
 
@@ -133,7 +132,7 @@ function analyzeHash(transfer: TransferData):ResultData {
     task = createTask(transfer.file)
     const nodeRefs: Array<NodeRefShare> = []
     transfer.nodeInfos.forEach((it)=>{
-      const ref = getShortestPathToGCRoot(task, `Int:${it.hash}`)
+      const ref = getShortestPathToGCRoot(task, `Int:${it.hash}`,10)
       if(ref.length > 0) {
         const refs = new collections.Array<ReferenceChainShare>()
         ref.forEach(item => refs.push(new ReferenceChainShare(
