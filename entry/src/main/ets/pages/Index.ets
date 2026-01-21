@@ -21,6 +21,7 @@ struct Index {
           .backgroundColor(Color.Red)
           .height(200)
           .width(200)
+          .margin({top:100})
         Text(this.message)
           .id('HelloWorld')
           .fontSize($r('app.float.page_text_font_size'))
@@ -41,6 +42,7 @@ struct Index {
             top: { anchor: '__container__', align: VerticalAlign.Top },
             right: { anchor: '__container__', align: HorizontalAlign.End }
           })
+          .margin({top:200})
 
       }
       .height('100%')

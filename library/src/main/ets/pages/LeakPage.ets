@@ -4,6 +4,8 @@ import './LeakDetails'
 import { LEAK_TASK_ROUTE_NAME } from "../Constants"
 import { analysisTaskTable } from "../db/DatabaseInterfaces"
 import { TaskItem } from "../components/TaskItem"
+import { common } from "@kit.AbilityKit"
+import { window } from "@kit.ArkUI"
 
 @Preview
 @Entry({routeName: LEAK_TASK_ROUTE_NAME})
@@ -12,7 +14,15 @@ export struct LeakPage {
 
   @Local leakTasks:TaskVO[] = []
 
+  @Local top:number = 0
+
   aboutToAppear(): void {
+    (this.getUIContext().getHostContext() as common.UIAbilityContext).windowStage.getMainWindow().then((windowClass)=>{
+      if(windowClass.getImmersiveModeEnabledState()){
+        let top = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height
+        this.top = this.getUIContext().px2vp(top)
+      }
+    })
     appDatabase.analysisTaskDao.query(it=>it.orderByDesc(analysisTaskTable.taskId)).then((tasks)=>{
       this.leakTasks = tasks.map((item)=>new TaskVO(item))
     })
@@ -30,7 +40,8 @@ export struct LeakPage {
           .fontWeight(FontWeight.Medium)
       }.padding(16)
       .width('100%')
-     .justifyContent(FlexAlign.SpaceBetween)
+      .margin({top:this.top})
+      .justifyContent(FlexAlign.SpaceBetween)
 
       List(){
         Repeat(this.leakTasks)

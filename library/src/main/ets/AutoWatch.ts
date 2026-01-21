@@ -45,7 +45,7 @@ export class AutoWatch {
     }else{
       array = leakInfo.leakObjList
     }
-    LeakNotification.getInstance().publishNotification(`检测到${array[0].name}等${array.length}个组件泄漏`)
+    LeakNotification.getInstance().publishNotification(`检测到${array[0].name}等${array.length}个组件疑似泄漏`)
     let taskInfo:AnalysisTask = {
       isViewed:false,
       status:1,

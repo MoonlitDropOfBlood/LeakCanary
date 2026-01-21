@@ -20,10 +20,21 @@ export function analyze(checkTask:CheckTask):Promise<void> {
     taskInfo.status = 2
     taskInfo.referencePaths = shareToObject(nodeRefs as ResultData)
     taskInfo.completeTime = new Date()
-    appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
-      hilog.error(0x0002, "Analyze", "update taskInfo error")
-    })
-    LeakNotification.getInstance().publishNotification(file+" 分析成功")
+    if(taskInfo.referencePaths.length == 0){
+      appDatabase.analysisTaskDao.delete(taskInfo)
+        .then(()=>{
+          return fileIo.unlink(taskInfo.heapSnapshotPath)
+        })
+        .catch(() => {
+        hilog.error(0x0002, "Analyze", "delete taskInfo error")
+      })
+      LeakNotification.getInstance().publishNotification(file+" 暂未发现泄漏对象")
+    }else {
+      appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
+        hilog.error(0x0002, "Analyze", "update taskInfo error")
+      })
+      LeakNotification.getInstance().publishNotification(file+" 分析成功")
+    }
   }).catch(() => {
     hilog.error(0x0002, "Analyze", "analyzeHash error")
     taskInfo.status = 3
@@ -44,10 +55,21 @@ export async function getDumpInfo(checkTask:CheckTask){
     taskInfo.status = 2
     taskInfo.referencePaths = shareToObject(nodeRefs as ResultData)
     taskInfo.completeTime = new Date()
-    appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
-      hilog.error(0x0002, "Analyze", "update taskInfo error")
-    })
-    LeakNotification.getInstance().publishNotification(file+" 分析成功")
+    if(taskInfo.referencePaths.length == 0){
+      appDatabase.analysisTaskDao.delete(taskInfo)
+        .then(()=>{
+          return fileIo.unlink(taskInfo.heapSnapshotPath)
+        })
+        .catch(() => {
+          hilog.error(0x0002, "Analyze", "delete taskInfo error")
+        })
+      LeakNotification.getInstance().publishNotification(file+" 暂未发现泄漏对象")
+    }else {
+      appDatabase.analysisTaskDao.update(taskInfo).catch(() => {
+        hilog.error(0x0002, "Analyze", "update taskInfo error")
+      })
+      LeakNotification.getInstance().publishNotification(file+" 分析成功")
+    }
   }).catch(() => {
     hilog.error(0x0002, "Analyze", "analyzeHash error")
     taskInfo.status = 3

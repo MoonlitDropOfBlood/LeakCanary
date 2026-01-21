@@ -30,6 +30,9 @@ export default class EntryAbility extends UIAbility {
       config.isLoggingEnabled = BuildProfile.DEBUG
       config.isHSPModuleDependent = false
     })
+    windowStage.getMainWindow().then((windowClass)=>{
+      windowClass.setWindowLayoutFullScreen(true)
+    })
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));

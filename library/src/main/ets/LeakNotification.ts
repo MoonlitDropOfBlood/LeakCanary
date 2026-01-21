@@ -52,6 +52,15 @@ export class LeakNotification {
     onWindowStageCreate(ability: UIAbility, windowStage: window.WindowStage) {
     },
     onWindowStageActive(ability: UIAbility, windowStage: window.WindowStage) {
+      const params = ability.launchWant.parameters
+      if(params?.['route'] == LEAK_START_URI){
+        setTimeout(()=>{
+          params['route'] = ''
+          windowStage.getMainWindow().then((win)=>{
+            win.getUIContext().getRouter().pushNamedRoute({ name: LEAK_TASK_ROUTE_NAME })
+          })
+        },1000)
+      }
     },
     onWindowStageInactive(ability: UIAbility, windowStage: window.WindowStage) {
     },
@@ -79,18 +88,7 @@ export class LeakNotification {
     onAbilityWillCreate(ability: UIAbility) {
     },
     onWindowStageWillCreate(ability: UIAbility, windowStage: window.WindowStage) {
-      if(ability.launchWant.parameters?.['route'] == LEAK_START_URI){
 
-        windowStage.getMainWindow().then((win)=>{
-          let onFirstPageUpdate: Callback<Size> = (event)=>{
-              win.off('windowSizeChange',onFirstPageUpdate)
-              setTimeout(()=>{
-                win.getUIContext().getRouter().pushNamedRoute({name:LEAK_TASK_ROUTE_NAME})
-              },1000)
-          }
-          win.on('windowSizeChange',onFirstPageUpdate)
-        })
-      }
       },
     onWindowStageWillDestroy(ability: UIAbility, windowStage: window.WindowStage) {
       LeakGuard.watchObj(windowStage)

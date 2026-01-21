@@ -1,11 +1,24 @@
 import { RefItem } from "../components/RefItem";
 import { AnalysisTask, NodeRef } from "../db/DatabaseInterfaces";
+import { common } from "@kit.AbilityKit";
+import { window } from "@kit.ArkUI";
 
 @Entry({routeName: 'LeakDetailsPage'})
 @ComponentV2
 export struct LeakDetails{
 
   private task:AnalysisTask = this.getUIContext().getRouter().getParams() as AnalysisTask
+
+  @Local top:number = 0
+
+  aboutToAppear(): void {
+    (this.getUIContext().getHostContext() as common.UIAbilityContext).windowStage.getMainWindow().then((windowClass)=>{
+      if(windowClass.getImmersiveModeEnabledState()){
+        let top = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height
+        this.top = this.getUIContext().px2vp(top)
+      }
+    })
+  }
 
   build() {
     Column(){
@@ -26,6 +39,7 @@ export struct LeakDetails{
           .ellipsisMode(EllipsisMode.CENTER)
           .layoutWeight(1)
       }.padding(16)
+      .margin({top:this.top})
       .width('100%')
 
       List(){

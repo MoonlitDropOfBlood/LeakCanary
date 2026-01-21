@@ -58,7 +58,7 @@ class ObjWatch {
         })
         if(noGC.length > 0) {
           hilog.error(0x0001,"GC","可能泄漏的对象为数为 " + noGC.length)
-          LeakNotification.getInstance().publishNotification(`检测到${firstLeak}等${noGC.length}个组件泄漏`)
+          LeakNotification.getInstance().publishNotification(`检测到${firstLeak}等${noGC.length}个组件疑似泄漏`)
           if(heldValue.isAnalyzing == false) {
             if(systemDateTime.getTime() - heldValue.lastAnalyzeTime >= LeakGuard.getAnalyzeInterval()) {
               heldValue.lastAnalyzeTime = systemDateTime.getTime()
