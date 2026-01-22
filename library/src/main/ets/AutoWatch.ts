@@ -1,16 +1,13 @@
 import { jsLeakWatcher } from "@kit.PerformanceAnalysisKit"
-import { HashSet, util } from "@kit.ArkTS"
+import { util } from "@kit.ArkTS"
 import { fileIo } from "@kit.CoreFileKit"
 import { LeakInfo, ObjInfo } from "./model/ObjInfo"
-import { LeakGuard } from "./LeakGuard"
 import { LeakNotification } from "./LeakNotification"
 import { AnalysisTask } from "./db/DatabaseInterfaces"
 import { appDatabase } from "./db/AppDatabase"
 import { CheckTask } from "./model/CheckTask"
 
 export class AutoWatch {
-
-  private hashs:HashSet<number> = new HashSet<number>()
 
   register(obj:object){
     jsLeakWatcher.watch(obj,util.getHash(obj).toString())
@@ -19,7 +16,6 @@ export class AutoWatch {
   setEnabled(enabled: boolean) {
     if(!enabled) {
       jsLeakWatcher.enable(enabled)
-      this.hashs.clear()
     }else{
       jsLeakWatcher.enableLeakWatcher(true,[],(path:string[])=>{
         this.getLeakInfo(path[0].replace("//","/"),path[1].replace("//","/"))
@@ -34,17 +30,7 @@ export class AutoWatch {
       return
     }
     leakInfoStr = undefined
-    let array:Array<ObjInfo>
-    if(LeakGuard.isAutoClear()){
-      array = []
-      leakInfo.leakObjList.forEach((objInfo)=>{
-        if(this.hashs.add(objInfo.hash)){
-          array.push(objInfo)
-        }
-      })
-    }else{
-      array = leakInfo.leakObjList
-    }
+    let array:Array<ObjInfo> = leakInfo.leakObjList
     LeakNotification.getInstance().publishNotification(`检测到${array[0].name}等${array.length}个组件疑似泄漏`)
     let taskInfo:AnalysisTask = {
       isViewed:false,
