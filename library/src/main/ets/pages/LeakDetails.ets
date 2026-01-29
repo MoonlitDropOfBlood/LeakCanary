@@ -1,7 +1,8 @@
 import { RefItem } from "../components/RefItem";
-import { AnalysisTask, NodeRef } from "../db/DatabaseInterfaces";
+import { AnalysisTask } from "../db/DatabaseInterfaces";
 import { common } from "@kit.AbilityKit";
 import { window } from "@kit.ArkUI";
+import { NodeRef } from "libleakguard.so";
 
 @Entry({routeName: 'LeakDetailsPage'})
 @ComponentV2

@@ -15,9 +15,12 @@ export class AutoWatch {
 
   setEnabled(enabled: boolean) {
     if(!enabled) {
-      jsLeakWatcher.enable(enabled)
+      jsLeakWatcher.enableLeakWatcher(false,[],()=>{})
     }else{
       jsLeakWatcher.enableLeakWatcher(true,[],(path:string[])=>{
+        if(path.length == 0 || !path[0] || !path[1]){
+          return
+        }
         this.getLeakInfo(path[0].replace("//","/"),path[1].replace("//","/"))
       })
     }

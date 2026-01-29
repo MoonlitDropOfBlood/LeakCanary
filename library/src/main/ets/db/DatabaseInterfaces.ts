@@ -1,17 +1,5 @@
 import { Table ,Column} from "@zxhhyj/storm";
-import { ReferenceChain } from "libleakguard.so";
-
-/**
- * 节点引用信息接口
- */
-export interface NodeRef {
-  /** 节点哈希值 */
-  hash: number;
-  /** 节点名称 */
-  name: string;
-  /** 到GC根的引用链 */
-  ref: ReferenceChain[];
-}
+import { NodeRef } from "libleakguard.so";
 
 /**
  * 分析任务信息接口

@@ -1,6 +1,6 @@
 {
   "name": "@duke/leak-guard",
-  "version": "4.0.2",
+  "version": "4.0.3",
   "description": "实时检测 ArkTS 组件内存泄漏",
   "main": "Index.ets",
   "author": "duke",

@@ -9,6 +9,11 @@ export enum EdgeType {
   WEAK = "weak"
 }
 
+export interface HashInfo{
+  hash:number
+  name:string
+}
+
 // 引用链节点接口
 export interface ReferenceChainNode {
   nodeId: number;
@@ -16,6 +21,18 @@ export interface ReferenceChainNode {
   type: string;
   path: string;
   line: number;
+}
+
+/**
+ * 节点引用信息接口
+ */
+export interface NodeRef {
+  /** 节点哈希值 */
+  hash: number;
+  /** 节点名称 */
+  name: string;
+  /** 到GC根的引用链 */
+  ref: ReferenceChain[];
 }
 
 // 引用链接口
@@ -36,3 +53,9 @@ export const getShortestPathToGCRoot: (taskId: number, name: string, maxDepth?: 
 
 // 二进制转成快照文件
 export const rawHeapTranslate: (filePath: string, outFilePath:string) => void;
+
+// 分析raw内存快照中指定对象的引用链
+export const rawAnalyzeHash: (filePath: string, hashInfos:HashInfo[]) => Promise<NodeRef[]>;
+
+// 分析内存快照中指定对象的引用链
+export const heapAnalyzeHash: (filePath: string, hashInfos:HashInfo[]) => Promise<NodeRef[]>;
