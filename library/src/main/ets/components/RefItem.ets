@@ -25,10 +25,12 @@ export struct RefItem{
 
         Column({space:8}){
           Text(`引用类型:${this.item.item.edgeType}`)
-          Text(`${this.item.item.from.name}@${this.item.item.from.nodeId.toString(16)}`)
-          if(this.item.item.from.path){
-            Text(`${this.item.item.from.path}(${this.item.item.from.line})`)
-          }
+          Text(){
+            Span(`${this.item.item.from.name}@${this.item.item.from.nodeId.toString(16)}`)
+            if(this.item.item.from.path){
+              Span(`\n${this.item.item.from.path}(${this.item.item.from.line})`)
+            }
+          }.copyOption(CopyOptions.LocalDevice)
         }.alignItems(HorizontalAlign.Start)
         .id('content')
         .height('auto')
