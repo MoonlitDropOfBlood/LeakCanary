@@ -40,7 +40,9 @@ export class SysWatch {
           return
         }
         this.dumpHeapSnapshot().then((taskInfo)=>{
-          return this.analyzeHeapSnapshot({ task:taskInfo, objInfos:leakInfos })
+          return this.analyzeHeapSnapshot({ task:taskInfo, objInfos:leakInfos }).then(()=>{
+            return fileIo.unlink(taskInfo.heapSnapshotPath)
+          })
         })
       },LeakGuard.getAnalyzeInterval())
     }
@@ -68,12 +70,12 @@ export class SysWatch {
   private dumpHeapSnapshot():Promise<AnalysisTask>{
     const baseDir = appDatabase.context.getApplicationContext().filesDir
     const paths = jsLeakWatcher.dump(baseDir)
-    fileIo.unlink(baseDir+'/'+paths[0])
     let taskInfo:AnalysisTask = {
       isViewed:false,
       status:1,
       createTime:new Date(),
-      heapSnapshotPath:baseDir+'/'+paths[1]
+      heapSnapshotPath:baseDir+'/'+paths[1],
+      hashFile:baseDir+'/'+paths[0]
     }
     return appDatabase.analysisTaskDao.insert(taskInfo).then(()=>{
       return taskInfo

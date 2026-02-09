@@ -39,12 +39,13 @@ export class AutoWatch {
       isViewed:false,
       status:1,
       createTime:new Date(),
-      heapSnapshotPath:rawPath
+      heapSnapshotPath:rawPath,
+      hashFile:leakInfoPath
     }
     return appDatabase.analysisTaskDao.insert(taskInfo).then(()=>{
-      return fileIo.unlink(leakInfoPath)
+      return this.getDumpInfo({ task:taskInfo, objInfos:array })
     }).then(()=>{
-      this.getDumpInfo({ task:taskInfo, objInfos:array })
+      return fileIo.unlink(leakInfoPath)
     })
   }
 

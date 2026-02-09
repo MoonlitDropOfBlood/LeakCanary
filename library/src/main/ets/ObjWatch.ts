@@ -8,6 +8,7 @@ import { AnalysisTask } from './db/DatabaseInterfaces'
 import { appDatabase } from './db/AppDatabase'
 import { ObjInfo } from './model/ObjInfo'
 import { CheckTask } from './model/CheckTask'
+import { fileIo } from '@kit.CoreFileKit'
 
 class ObjWatch {
   private cacheValue:LinkedList<WeakRef<object>> = new LinkedList()
@@ -96,7 +97,8 @@ class ObjWatch {
       isViewed:false,
       status:1,
       createTime:new Date(time),
-      heapSnapshotPath:appDatabase.context.filesDir+'/'+file+'.heapsnapshot'
+      heapSnapshotPath:appDatabase.context.filesDir+'/'+file+'.heapsnapshot',
+      hashFile:appDatabase.context.filesDir+'/'+file+'.hash'
     }
     const array :ObjInfo[] = []
     objects.forEach((it:object)=>{
@@ -106,13 +108,21 @@ class ObjWatch {
       })
     })
     objects.clear() // 防止 GC 出现意外的引用
-    return appDatabase.analysisTaskDao.insert(taskInfo).then(()=>{
-      hidebug.dumpJsHeapData(taskInfo.heapSnapshotPath)
-      return {
-        task:taskInfo,
-        objInfos:array
-      }
+
+    return fileIo.open(taskInfo.hashFile,fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.CREATE).then((fd)=>{
+      return fileIo.write(fd.fd,JSON.stringify(array)).then(()=>{
+        fileIo.close(fd)
+      })
+    }).then(()=>{
+      return appDatabase.analysisTaskDao.insert(taskInfo).then(()=>{
+        hidebug.dumpJsHeapData(taskInfo.heapSnapshotPath)
+        return {
+          task:taskInfo,
+          objInfos:array
+        }
+      })
     })
+
   }
 
   setEnabled(enabled: boolean) {

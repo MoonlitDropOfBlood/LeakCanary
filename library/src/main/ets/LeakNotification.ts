@@ -1,9 +1,15 @@
 import { notificationManager } from "@kit.NotificationKit"
 import { AbilityLifecycleCallback, common, UIAbility, WantAgent, wantAgent } from "@kit.AbilityKit"
-import { Size, window } from "@kit.ArkUI"
+import { window } from "@kit.ArkUI"
 import { LEAK_START_URI, LEAK_TASK_ROUTE_NAME } from "./Constants"
-import { Callback } from "@kit.BasicServicesKit"
 import { LeakGuard } from "./LeakGuard"
+import { appDatabase } from "./db/AppDatabase"
+import { analysisTaskTable } from "./db/DatabaseInterfaces"
+import { objWatch } from "./ObjWatch"
+import { fileIo } from "@kit.CoreFileKit"
+import { autoWatch } from "./AutoWatch"
+import { LeakInfo } from "./model/ObjInfo"
+import { sysWatch } from "./SysWatch"
 
 export class LeakNotification {
   //单例
@@ -48,6 +54,37 @@ export class LeakNotification {
 
   private readonly abilityLifecycleCallback: AbilityLifecycleCallback = {
     onAbilityCreate(ability: UIAbility) {
+      appDatabase.analysisTaskDao.query((it)=>it.equalTo(analysisTaskTable.status ,1)).then((tasks)=>{
+        tasks.forEach((task)=>{
+          if(!task.hashFile){//老数据不存在这个字段
+            return
+          }
+          if(task.hashFile.endsWith('.hash')){//ObjWatch 的数据类型
+            fileIo.readText(task.hashFile).then((content)=>{
+              objWatch.analyzeHeapSnapshot({
+                task:task,
+                objInfos:JSON.parse(content)
+              })
+            })
+          }else if(task.heapSnapshotPath.endsWith('.rawheap')){//API20
+            fileIo.readText(task.hashFile).then((content)=>{
+              const leakInfo = JSON.parse(content) as LeakInfo
+              autoWatch.getDumpInfo({
+                task:task,
+                objInfos:leakInfo.leakObjList
+              })
+            })
+          }else{//SysWatch的数据缓存
+            fileIo.readText(task.hashFile).then((content)=>{
+              const leakInfo = JSON.parse(content) as LeakInfo
+              sysWatch.analyzeHeapSnapshot({
+                task:task,
+                objInfos:leakInfo.leakObjList
+              })
+            })
+          }
+        })
+      })
     },
     onWindowStageCreate(ability: UIAbility, windowStage: window.WindowStage) {
     },
